@@ -264,16 +264,17 @@ public class BlobStorageService
         if (major == null)
             return new List<QuestionWithMajorDto>();
 
-        // 1) Fixed questions (always included, regardless of major)
+        // Fixed titles (always included)
         var fixedTitles = new[]
         {
         "Opening Message",
-        "Closing Message",
-        "Candidate Question"
+        "Candidate Question",
+        "Closing Message"
     };
 
         var fixedTitlesLower = fixedTitles.Select(t => t.ToLower()).ToArray();
 
+        // 1) Fixed questions
         var fixedQuestions = await _context.Questions
             .AsNoTracking()
             .Where(q => fixedTitlesLower.Contains(q.Title.ToLower()))
@@ -291,12 +292,29 @@ public class BlobStorageService
 
         var fixedIds = fixedQuestions.Select(q => q.QuestionId).ToHashSet();
 
-        // 2) Random questions for this specific major
+        // 2) Common Questions (included for everyone, regardless of major)
+        var commonQuestions = await _context.Questions
+            .AsNoTracking()
+            .Where(q => q.Title.ToLower() == "common question")
+            .Select(q => new QuestionWithMajorDto
+            {
+                QuestionId = q.Id,
+                Title = q.Title,
+                VideoUrl = q.VideoUrl,
+                MajorId = q.MajorId,
+                MajorName = null // Hide the major name for common questions
+            })
+            .ToListAsync();
+
+        var excludedIds = fixedIds.Union(commonQuestions.Select(q => q.QuestionId)).ToHashSet();
+
+        // 3) Random major-specific questions
         var randomQuestions = await _context.Questions
             .AsNoTracking()
-            .Where(q => q.MajorId == major.Id && !fixedIds.Contains(q.Id))
+            .Where(q => q.MajorId == major.Id && !excludedIds.Contains(q.Id))
             .OrderBy(q => Guid.NewGuid())
             .Take(randomCount)
+
             .Select(q => new QuestionWithMajorDto
             {
                 QuestionId = q.Id,
@@ -307,9 +325,13 @@ public class BlobStorageService
             })
             .ToListAsync();
 
-        // 3) Combine results: 3 fixed + 5 random
-        return fixedQuestions.Concat(randomQuestions).ToList();
+        // Combine all
+        return fixedQuestions
+            .Concat(commonQuestions)
+            .Concat(randomQuestions)
+            .ToList();
     }
+
     public async Task<Major> CreateMajorAsync(string name, string description, IFormFile imageFile, int facultyId)
     {
         if (string.IsNullOrWhiteSpace(name))
