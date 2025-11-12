@@ -30,5 +30,7 @@ namespace FrancProject.Models
 
         public bool? CanDoMockInterview { get; set; } = true;
 
+        public int? MockAttempts { get; set; }
+
     }
 }

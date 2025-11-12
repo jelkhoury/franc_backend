@@ -9,6 +9,7 @@ public interface IEvaluationRepository
     Task<EvaluationReportDto> CreateEvaluationReportWithEvaluationsAsync(int userId, List<int> answerIds, string? summaryComment = null);
     Task EvaluateAnswersAsync(int evaluatorId, List<EvaluateAnswerDto> evaluations);
     Task<bool> CanUserDoMockInterviewAsync(int userId);
+    Task IncreaseMockAttemptsAsync(int userId);
 
 
 }

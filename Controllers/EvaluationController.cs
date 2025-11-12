@@ -91,6 +91,25 @@ public class EvaluationController : ControllerBase
         }
     }
 
+
+    [HttpPost("increase-attempt/{userId}")]
+    public async Task<IActionResult> IncreaseMockAttempts(int userId)
+    {
+        try
+        {
+            await _evaluationRepository.IncreaseMockAttemptsAsync(userId);
+            return Ok(new { message = "Mock attempt count increased successfully.", userId });
+        }
+        catch (ArgumentException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Error increasing attempts: {ex.Message}" });
+        }
+    }
+
 }
 
 

@@ -139,13 +139,30 @@ public class EvaluationRepository:IEvaluationRepository
         if (user.CanDoMockInterview == false)
             return false;
 
+        if ((user.MockAttempts ?? 0) > 1)
+            return false;
+
         int interviewCount = await _context.EvaluationReports.CountAsync(r => r.UserId == userId);
-        if (interviewCount > 2)
+        if (interviewCount >1)
             return false;
 
         return true;
     }
 
+
+    public async Task IncreaseMockAttemptsAsync(int userId)
+    {
+        var user = await _context.Users.FindAsync(userId);
+
+        if (user == null)
+            throw new ArgumentException("User not found");
+
+
+        user.MockAttempts = (user.MockAttempts ?? 0) + 1;
+
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+    }
 
 
 
