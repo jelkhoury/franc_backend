@@ -1,112 +1,117 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using FrancProject.Models;
 using FrancProject.Dto;
+using FrancProject.Interface;
 using System;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/evaluation")]
+[Authorize]
 public class EvaluationController : ControllerBase
 {
-    private readonly IEvaluationRepository _evaluationRepository;
+    private readonly IEvaluationRepository _repo;
 
     public EvaluationController(IEvaluationRepository evaluationRepository)
     {
-        _evaluationRepository = evaluationRepository;
+        _repo = evaluationRepository;
     }
 
+    // ---------------------------------------
+    // EVALUATE SINGLE QUESTION
+    // ---------------------------------------
     [HttpPost("evaluate")]
-    public async Task<IActionResult> EvaluateQuestion([FromBody] EvaluateRequest request)
+    public async Task<IActionResult> EvaluateQuestion([FromBody] EvaluateRequest req)
     {
         try
         {
-            await _evaluationRepository.EvaluateQuestionAsync(
-                request.AnswerId,
-                request.EvaluatorId,
-                request.Rating,
-                request.Comment
-            );
-
+            await _repo.EvaluateQuestionAsync(req.AnswerId, req.EvaluatorId, req.Rating, req.Comment);
             return Ok(new { message = "Evaluation saved successfully." });
         }
         catch (ArgumentOutOfRangeException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Error: {ex.Message}");
+            return StatusCode(500, new { error = ex.Message });
         }
     }
 
+    // ---------------------------------------
+    // EVALUATE MULTIPLE ANSWERS
+    // ---------------------------------------
     [HttpPost("evaluate-multiple")]
-    public async Task<IActionResult> EvaluateMultipleAnswers([FromBody] EvaluateMultipleRequest request)
+    public async Task<IActionResult> EvaluateMultiple([FromBody] EvaluateMultipleRequest req)
     {
         try
         {
-            await _evaluationRepository.EvaluateAnswersAsync(request.EvaluatorId, request.Evaluations);
+            await _repo.EvaluateAnswersAsync(req.EvaluatorId, req.Evaluations);
             return Ok(new { message = "All evaluations processed successfully." });
         }
         catch (ArgumentOutOfRangeException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Error: {ex.Message}");
+            return StatusCode(500, new { error = ex.Message });
         }
     }
 
-    [HttpPost("report")]
-    public async Task<IActionResult> CreateEvaluationReport([FromBody] EvaluationReportRequest request)
+    // ---------------------------------------
+    // CREATE EVALUATION REPORT
+    // ---------------------------------------
+    [HttpPost("create-report")]
+    public async Task<IActionResult> CreateReport([FromBody] EvaluationReportRequest req)
     {
         try
         {
-            var report = await _evaluationRepository.CreateEvaluationReportWithEvaluationsAsync(
-                request.UserId,
-                request.AnswerIds,
-                request.SummaryComment
-            );
-
-            return Ok(report);
+            var result = await _repo.CreateEvaluationReportWithEvaluationsAsync(req.UserId, req.AnswerIds, req.SummaryComment);
+            return Ok(result);
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Error generating report: {ex.Message}");
+            return StatusCode(500, new { error = $"Error generating report: {ex.Message}" });
         }
     }
 
-    [HttpGet("can-do-mock/{userId}")]
-    public async Task<IActionResult> CanUserDoMock(int userId)
+    // ---------------------------------------
+    // CAN USER DO MOCK?
+    // ---------------------------------------
+    [HttpGet("can-do-mock")]
+    public async Task<IActionResult> CanDoMock([FromQuery] int userId)
     {
         try
         {
-            var result = await _evaluationRepository.CanUserDoMockInterviewAsync(userId);
-            return Ok(new { userId, canDoMock = result });
+            var canDo = await _repo.CanUserDoMockInterviewAsync(userId);
+            return Ok(new { userId, canDoMock = canDo });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = ex.Message });
+            return StatusCode(500, new { error = ex.Message });
         }
     }
 
-
-    [HttpPost("increase-attempt/{userId}")]
-    public async Task<IActionResult> IncreaseMockAttempts(int userId)
+    // ---------------------------------------
+    // INCREASE MOCK ATTEMPTS
+    // ---------------------------------------
+    [HttpPost("increase-attempt")]
+    public async Task<IActionResult> IncreaseAttempt([FromQuery] int userId)
     {
         try
         {
-            await _evaluationRepository.IncreaseMockAttemptsAsync(userId);
-            return Ok(new { message = "Mock attempt count increased successfully.", userId });
+            await _repo.IncreaseMockAttemptsAsync(userId);
+            return Ok(new { message = "Mock attempt increased successfully.", userId });
         }
         catch (ArgumentException ex)
         {
-            return NotFound(new { message = ex.Message });
+            return NotFound(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = $"Error increasing attempts: {ex.Message}" });
+            return StatusCode(500, new { error = $"Error increasing attempts: {ex.Message}" });
         }
     }
 

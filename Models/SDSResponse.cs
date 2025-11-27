@@ -18,6 +18,10 @@ namespace FrancProject.Models
         public string? SelectedValue { get; set; } // store "R", "A", etc. directly
         public string? CustomAnswer { get; set; }
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
+        public int? SDSResultId { get; set; }
+        [JsonIgnore]
+        public SDSResult SDSResult { get; set; }
+
     }
 
 }

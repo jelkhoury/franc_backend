@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using FrancProject.Data;
+using FrancProject.Dto;
+using FrancProject.Interface;
 using FrancProject.Models;
 using Microsoft.EntityFrameworkCore;
-using FrancProject.Dto;
 
-public class EvaluationRepository:IEvaluationRepository
+public class EvaluationRepository : IEvaluationRepository
 {
     private readonly DataContext _context;
 
@@ -15,30 +17,27 @@ public class EvaluationRepository:IEvaluationRepository
         _context = context;
     }
 
-
- 
+    // ---------------------------------------
+    // SINGLE QUESTION EVALUATION
+    // ---------------------------------------
     public async Task EvaluateQuestionAsync(int answerId, int evaluatorId, int rating, string? comment)
     {
         if (rating < 1 || rating > 5)
             throw new ArgumentOutOfRangeException(nameof(rating), "Rating must be between 1 and 5.");
 
-        var existingEvaluation = await _context.EvaluateQuestions
-    .FirstOrDefaultAsync(e =>
-        e.AnswerId == answerId &&
-        e.EvaluatorId == evaluatorId);
+        var existing = await _context.EvaluateQuestions
+            .FirstOrDefaultAsync(e => e.AnswerId == answerId && e.EvaluatorId == evaluatorId);
 
-        if (existingEvaluation != null)
+        if (existing != null)
         {
-
-            existingEvaluation.Rating = rating;
-            existingEvaluation.Comment = comment;
-            existingEvaluation.CreatedAt = DateTime.UtcNow;
-            _context.EvaluateQuestions.Update(existingEvaluation);
+            existing.Rating = rating;
+            existing.Comment = comment;
+            existing.CreatedAt = DateTime.UtcNow;
+            _context.EvaluateQuestions.Update(existing);
         }
         else
         {
-
-            var evaluation = new EvaluateQuestion
+            var eval = new EvaluateQuestion
             {
                 AnswerId = answerId,
                 EvaluatorId = evaluatorId,
@@ -47,16 +46,19 @@ public class EvaluationRepository:IEvaluationRepository
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _context.EvaluateQuestions.AddAsync(evaluation);
+            await _context.EvaluateQuestions.AddAsync(eval);
         }
 
         await _context.SaveChangesAsync();
     }
 
+    // ---------------------------------------
+    // FULL REPORT WITH EVALUATIONS
+    // ---------------------------------------
     public async Task<EvaluationReportDto> CreateEvaluationReportWithEvaluationsAsync(
-    int userId,
-    List<int> answerIds,
-    string? summaryComment = null)
+        int userId,
+        List<int> answerIds,
+        string? summaryComment = null)
     {
         var report = new EvaluationReport
         {
@@ -73,9 +75,9 @@ public class EvaluationRepository:IEvaluationRepository
             .Where(a => answerIds.Contains(a.Id))
             .ToListAsync();
 
-        foreach (var answer in answers)
+        foreach (var a in answers)
         {
-            answer.EvaluationReportId = report.Id;
+            a.EvaluationReportId = report.Id;
         }
 
         await _context.SaveChangesAsync();
@@ -84,16 +86,14 @@ public class EvaluationRepository:IEvaluationRepository
             .Where(eq => answerIds.Contains(eq.AnswerId))
             .ToListAsync();
 
-        float? overallRating = null;
-        if (evaluations.Count > 0)
+        if (evaluations.Any())
         {
-            overallRating = (float)(evaluations.Average(eq => (int?)eq.Rating) ?? 0);
-            report.OverallRating = overallRating;
+            report.OverallRating = (float?)evaluations.Average(e => e.Rating) ?? 0;
             _context.EvaluationReports.Update(report);
             await _context.SaveChangesAsync();
         }
 
-
+        // Allow user to do mock interview
         var user = await _context.Users.FindAsync(userId);
         if (user != null)
         {
@@ -105,7 +105,6 @@ public class EvaluationRepository:IEvaluationRepository
         var answerDtos = answers.Select(a =>
         {
             var eval = evaluations.FirstOrDefault(e => e.AnswerId == a.Id);
-
             return new AnswerEvaluationDto
             {
                 AnswerId = a.Id,
@@ -127,36 +126,36 @@ public class EvaluationRepository:IEvaluationRepository
         };
     }
 
-
-
-
+    // ---------------------------------------
+    // CHECK IF USER CAN DO MOCK
+    // ---------------------------------------
     public async Task<bool> CanUserDoMockInterviewAsync(int userId)
     {
         var user = await _context.Users.FindAsync(userId);
         if (user == null)
             throw new ArgumentException("User not found");
 
-        if (user.CanDoMockInterview == false)
+        if ((bool)!user.CanDoMockInterview)
             return false;
 
         if ((user.MockAttempts ?? 0) > 1)
             return false;
 
-        int interviewCount = await _context.EvaluationReports.CountAsync(r => r.UserId == userId);
-        if (interviewCount >1)
+        int count = await _context.EvaluationReports.CountAsync(r => r.UserId == userId);
+        if (count > 1)
             return false;
 
         return true;
     }
 
-
+    // ---------------------------------------
+    // INCREASE ATTEMPT
+    // ---------------------------------------
     public async Task IncreaseMockAttemptsAsync(int userId)
     {
         var user = await _context.Users.FindAsync(userId);
-
         if (user == null)
             throw new ArgumentException("User not found");
-
 
         user.MockAttempts = (user.MockAttempts ?? 0) + 1;
 
@@ -164,9 +163,9 @@ public class EvaluationRepository:IEvaluationRepository
         await _context.SaveChangesAsync();
     }
 
-
-
-
+    // ---------------------------------------
+    // BULK EVALUATION
+    // ---------------------------------------
     public async Task EvaluateAnswersAsync(int evaluatorId, List<EvaluateAnswerDto> evaluations)
     {
         foreach (var eval in evaluations)
@@ -202,6 +201,5 @@ public class EvaluationRepository:IEvaluationRepository
         await _context.SaveChangesAsync();
     }
 
-
-
+    
 }

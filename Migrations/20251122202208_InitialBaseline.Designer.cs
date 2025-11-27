@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FrancProject.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20250922112902_mig15")]
-    partial class mig15
+    [Migration("20251122202208_InitialBaseline")]
+    partial class InitialBaseline
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -185,6 +185,9 @@ namespace FrancProject.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("NbOfTry")
+                        .HasColumnType("int");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -280,10 +283,16 @@ namespace FrancProject.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
                     b.Property<string>("CustomAnswer")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("QuestionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SDSResultId")
                         .HasColumnType("int");
 
                     b.Property<string>("SelectedValue")
@@ -299,10 +308,38 @@ namespace FrancProject.Migrations
 
                     b.HasIndex("QuestionId");
 
-                    b.HasIndex("UserId", "QuestionId")
+                    b.HasIndex("SDSResultId");
+
+                    b.HasIndex("UserId", "QuestionId", "AttemptNumber")
                         .IsUnique();
 
                     b.ToTable("SDSResponses");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.SDSResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AIFeedback")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("HollandCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SDSResults");
                 });
 
             modelBuilder.Entity("FrancProject.Models.SDSSection", b =>
@@ -353,6 +390,9 @@ namespace FrancProject.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("MockAttempts")
+                        .HasColumnType("int");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -488,6 +528,11 @@ namespace FrancProject.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("FrancProject.Models.SDSResult", "SDSResult")
+                        .WithMany("Responses")
+                        .HasForeignKey("SDSResultId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FrancProject.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -495,6 +540,19 @@ namespace FrancProject.Migrations
                         .IsRequired();
 
                     b.Navigation("Question");
+
+                    b.Navigation("SDSResult");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.SDSResult", b =>
+                {
+                    b.HasOne("FrancProject.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -522,6 +580,11 @@ namespace FrancProject.Migrations
             modelBuilder.Entity("FrancProject.Models.SDSQuestion", b =>
                 {
                     b.Navigation("AnswerOptions");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.SDSResult", b =>
+                {
+                    b.Navigation("Responses");
                 });
 
             modelBuilder.Entity("FrancProject.Models.SDSSection", b =>
