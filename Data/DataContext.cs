@@ -21,6 +21,8 @@ namespace FrancProject.Data
         public DbSet<SDSAnswerOption> SDSAnswerOptions { get; set; }
         public DbSet<SDSResponse> SDSResponses { get; set; }
         public DbSet<SDSResult> SDSResults { get; set; }
+        public DbSet<FileRecord> Files { get; set; }
+
 
 
 

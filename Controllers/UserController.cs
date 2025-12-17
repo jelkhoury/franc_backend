@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using FrancProject.Dto;
+﻿using FrancProject.Dto;
 using FrancProject.Interface;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using static UserRepository;
 
 [ApiController]
 [Route("api/users")]
@@ -209,6 +210,24 @@ public class UserController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+
+   
+
+    [HttpGet("CanUserPerformAction")]
+    public async Task<IActionResult> CanUserPerformAction([FromQuery] int userId, UserActionType action)
+    {
+        try
+        {
+            var canDo = await _userRepo.CanUserPerformActionAsync(userId,action);
+            return Ok(new { userId, canDoMock = canDo });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
+
 
 
 

@@ -1,5 +1,6 @@
-﻿using System.Threading.Tasks;
-using FrancProject.Dto;
+﻿using FrancProject.Dto;
+using System.Threading.Tasks;
+using static UserRepository;
 
 namespace FrancProject.Interface
 {
@@ -17,6 +18,8 @@ namespace FrancProject.Interface
         Task<UserResponseDto> AddUser(UserCrudDto dto);
         Task<UserResponseDto> UpdateUser(int id, UserCrudDto dto);
         Task<bool> DeleteUser(int id);
+      
+        Task<bool> CanUserPerformActionAsync(int userId, UserActionType action);
 
     }
 }

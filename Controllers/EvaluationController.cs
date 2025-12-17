@@ -78,23 +78,6 @@ public class EvaluationController : ControllerBase
     }
 
     // ---------------------------------------
-    // CAN USER DO MOCK?
-    // ---------------------------------------
-    [HttpGet("can-do-mock")]
-    public async Task<IActionResult> CanDoMock([FromQuery] int userId)
-    {
-        try
-        {
-            var canDo = await _repo.CanUserDoMockInterviewAsync(userId);
-            return Ok(new { userId, canDoMock = canDo });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    // ---------------------------------------
     // INCREASE MOCK ATTEMPTS
     // ---------------------------------------
     [HttpPost("increase-attempt")]

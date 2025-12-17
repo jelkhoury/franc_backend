@@ -31,6 +31,9 @@ namespace FrancProject.Models
         public bool? CanDoMockInterview { get; set; } = true;
 
         public int? MockAttempts { get; set; }
-
+        public int? CoverAttempts { get; set; }
+        public int? ResumeAttempts { get; set; }
+        public int? SDSAttempts { get; set; }
+        public ICollection<FileRecord> Files { get; set; }
     }
 }

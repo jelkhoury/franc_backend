@@ -214,5 +214,39 @@ public class BlobStorageController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+    [HttpPost("upload-file")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadFile(
+      [FromForm] UploadFileRequestDto model)
+    {
+        try
+        {
+            var record = await _blob.UploadFileAsync(
+                model.UserId,
+                model.Title,
+                model.ResumeFile,
+                model.CoverFile,
+                model.JobAddFile,
+                model.FolderName,
+                model.AiEvaluation
+            );
+
+            return Ok(new
+            {
+                message = "File(s) uploaded successfully",
+                fileId = record.Id,
+                title = record.Title,
+                resumeUrl = record.ResumeUrl,
+                coverUrl = record.CoverUrl,
+                jobAddUrl = record.JobAddUrl
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+
 
 }

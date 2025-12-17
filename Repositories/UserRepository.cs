@@ -270,7 +270,7 @@ public class UserRepository : IUserRepository
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["AppSettings:Token"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 expires: DateTime.UtcNow.AddDays(1),
@@ -435,6 +435,58 @@ public class UserRepository : IUserRepository
             throw new Exception($"DeleteUser failed: {ex.Message}");
         }
     }
+
+    public async Task<bool> CanDoMockInterviewAsync(User user)
+    {
+        if (user.CanDoMockInterview == false)
+            return false;
+
+        if ((user.MockAttempts ?? 0) <= 0)
+            return false;
+
+        int count = await _context.EvaluationReports
+            .CountAsync(r => r.UserId == user.Id);
+
+        if (count >= 1)
+            return false;
+
+        return true;
+    }
+
+    public async Task<bool> CanUserPerformActionAsync(int userId, UserActionType action)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            throw new ArgumentException("User not found");
+
+        switch (action)
+        {
+            case UserActionType.MockInterview:
+                return await CanDoMockInterviewAsync(user);
+
+            case UserActionType.SDS:
+                return (user.SDSAttempts ?? 0) > 0;
+
+            case UserActionType.Resume:
+                return (user.ResumeAttempts ?? 0) > 0;
+
+            case UserActionType.CoverLetter:
+                return (user.CoverAttempts ?? 0) > 0;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(action), "Invalid action type");
+        }
+    }
+
+
+    public enum UserActionType
+    {
+        MockInterview,
+        SDS,
+        Resume,
+        CoverLetter
+    }
+
 
 
 }

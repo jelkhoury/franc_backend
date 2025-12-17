@@ -397,4 +397,95 @@ public class BlobStorageService
         return question;
     }
 
+    public async Task<FileRecord> UploadFileAsync(
+      int userId,
+      string title,
+      IFormFile? resumeFile,
+      IFormFile? coverFile,
+      IFormFile? jobAddFile,
+      string folderName,
+      string? aiEvaluation = null)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null)
+            throw new ArgumentException("User not found.");
+
+        var container = _blobClient.GetBlobContainerClient(_container);
+        await container.CreateIfNotExistsAsync();
+
+        async Task<string?> UploadToBlobAsync(IFormFile? file)
+        {
+            if (file == null || file.Length == 0)
+                return null;
+
+            string ext = Path.GetExtension(file.FileName);
+            string baseName = Path.GetFileNameWithoutExtension(file.FileName);
+            baseName = string.Join("_", baseName.Split(Path.GetInvalidFileNameChars()));
+
+            string unique =
+                DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + "_" +
+                Guid.NewGuid().ToString("N");
+
+            string blobName = $"{baseName}_{unique}{ext}";
+            string blobPath = $"{folderName}/{blobName}";
+
+            var blob = container.GetBlobClient(blobPath);
+
+            using var stream = file.OpenReadStream();
+            await blob.UploadAsync(stream, overwrite: false);
+
+            return blob.Uri.ToString();
+        }
+
+        var record = new FileRecord
+        {
+            UserId = userId,
+            Title = title,
+            AiEvaluation = aiEvaluation
+        };
+
+        switch (title)
+        {
+            case "Resume":
+                if ((user.ResumeAttempts ?? 0) <= 0)
+                    throw new InvalidOperationException("No resume attempts remaining.");
+
+                record.ResumeUrl = await UploadToBlobAsync(resumeFile);
+                user.ResumeAttempts--;
+                break;
+
+            case "CoverLetter":
+                if ((user.CoverAttempts ?? 0) <= 0)
+                    throw new InvalidOperationException("No cover letter attempts remaining.");
+
+                if (coverFile == null || jobAddFile == null)
+                    throw new ArgumentException("CoverLetter requires cover file and job ad file.");
+
+                record.CoverUrl = await UploadToBlobAsync(coverFile);
+                record.JobAddUrl = await UploadToBlobAsync(jobAddFile);
+                user.CoverAttempts--;
+                break;
+
+            case "JobAdd":
+                record.JobAddUrl = await UploadToBlobAsync(jobAddFile);
+                break;
+
+            default:
+                throw new ArgumentException("Invalid title. Allowed: Resume, CoverLetter, JobAdd.");
+        }
+
+        _context.Files.Add(record);
+        _context.Users.Update(user); // 🔑 ensure EF tracks the decrement
+        await _context.SaveChangesAsync();
+
+        return record;
+    }
+
+
+
+
+
 }
+
+
+

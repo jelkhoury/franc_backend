@@ -126,27 +126,6 @@ public class EvaluationRepository : IEvaluationRepository
         };
     }
 
-    // ---------------------------------------
-    // CHECK IF USER CAN DO MOCK
-    // ---------------------------------------
-    public async Task<bool> CanUserDoMockInterviewAsync(int userId)
-    {
-        var user = await _context.Users.FindAsync(userId);
-        if (user == null)
-            throw new ArgumentException("User not found");
-
-        if ((bool)!user.CanDoMockInterview)
-            return false;
-
-        if ((user.MockAttempts ?? 0) > 1)
-            return false;
-
-        int count = await _context.EvaluationReports.CountAsync(r => r.UserId == userId);
-        if (count > 1)
-            return false;
-
-        return true;
-    }
 
     // ---------------------------------------
     // INCREASE ATTEMPT
