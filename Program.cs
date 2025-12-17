@@ -1,21 +1,25 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 
 using FrancProject.Data;
 using FrancProject.Interface;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --------------------------------------------------
+// DATABASE
+// --------------------------------------------------
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
+// --------------------------------------------------
+// DEPENDENCY INJECTION
+// --------------------------------------------------
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IEvaluationRepository, EvaluationRepository>();
 builder.Services.AddScoped<ISdsRepository, SdsRepository>();
@@ -23,36 +27,62 @@ builder.Services.AddScoped<BlobStorageService>();
 
 builder.Services.AddControllers();
 
+// --------------------------------------------------
+// CORS
+// --------------------------------------------------
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll",
-        policy => policy.AllowAnyOrigin() 
-                        .AllowAnyMethod() 
-                        .AllowAnyHeader()); 
+    options.AddPolicy("AllowAll", policy =>
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader());
 });
 
-// Add Authentication with JWT Bearer
+// --------------------------------------------------
+// JWT AUTHENTICATION (AZURE SAFE)
+// --------------------------------------------------
+var jwtToken =
+    builder.Configuration["AppSettings:Token"]
+    ?? Environment.GetEnvironmentVariable("AppSettings__Token");
+
+if (string.IsNullOrWhiteSpace(jwtToken))
+{
+    throw new InvalidOperationException(
+        "JWT token is missing. Configure AppSettings__Token in Azure Application Settings."
+    );
+}
+
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtToken));
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var key = Encoding.UTF8.GetBytes(builder.Configuration["AppSettings:Token"]);
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
+            IssuerSigningKey = signingKey,
             ValidateIssuer = false,
-            ValidateAudience = false
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
         };
     });
 
+// --------------------------------------------------
+// SWAGGER
+// --------------------------------------------------
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "FrancProject API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "FrancProject API",
+        Version = "v1"
+    });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {your token}'",
+        Description = "JWT Authorization header using the Bearer scheme. Example: 'Bearer {token}'",
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.ApiKey,
@@ -64,40 +94,49 @@ builder.Services.AddSwaggerGen(c =>
         {
             new OpenApiSecurityScheme
             {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
             },
             Array.Empty<string>()
         }
     });
+
     c.OperationFilter<FileUploadOperationFilter>();
 });
-builder.Services.AddScoped<BlobStorageService>();
 
 var app = builder.Build();
 
+// --------------------------------------------------
+// LOG ACTIVE DATABASE (DEBUG)
+// --------------------------------------------------
+var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(cs))
+{
+    var b = new SqlConnectionStringBuilder(cs);
+    app.Logger.LogInformation(
+        "DB Used at runtime: {Server}/{Database}",
+        b.DataSource,
+        b.InitialCatalog
+    );
+}
+
+// --------------------------------------------------
+// MIDDLEWARE
+// --------------------------------------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-var cs = builder.Configuration.GetConnectionString("DefaultConnection"); // or your name
-if (!string.IsNullOrEmpty(cs))
-{
-    var b = new SqlConnectionStringBuilder(cs);
-    app.Logger.LogInformation("DB Used at runtime: {Server}/{Database}", b.DataSource, b.InitialCatalog);
-}
-
-
 app.UseHttpsRedirection();
-
 app.UseCors("AllowAll");
 
-
-app.UseAuthentication();  
+app.UseAuthentication();
 app.UseAuthorization();
 
-
 app.MapControllers();
-
 app.Run();
