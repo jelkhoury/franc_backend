@@ -20,15 +20,8 @@ public class BlobStorageService
 
     public BlobStorageService(IConfiguration config, DataContext context, IUserRepository userRepository)
     {
-        string connectionString = configuration.GetConnectionString("AzureBlobStorage");
-
-        if (string.IsNullOrWhiteSpace(connectionString))
-            throw new InvalidOperationException("AzureBlobStorage connection string is missing");
-
-        _blobServiceClient = new BlobServiceClient(connectionString);
-
-        _blobServiceClient = new BlobServiceClient(connectionString);
-        _containerName = configuration["BlobContainerName"];
+        _blobClient = new BlobServiceClient(config.GetConnectionString("AzureBlobStorage"));
+        _container = config["BlobContainerName"];
         _context = context;
         _userRepo = userRepository;
     }
@@ -93,7 +86,6 @@ public class BlobStorageService
             Title = $"Mock Interview {user.Email}",
             Duration = dto.Duration,
             NbOfTry = dto.NbOfTry
-
         };
 
         _context.MockInterviews.Add(mock);
@@ -324,9 +316,8 @@ public class BlobStorageService
         if (faculty == null)
             throw new ArgumentException("Faculty not found.");
 
-
-        var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
-        await containerClient.CreateIfNotExistsAsync();
+        var container = _blobClient.GetBlobContainerClient(_container);
+        await container.CreateIfNotExistsAsync();
 
         string ext = Path.GetExtension(image.FileName);
         string blobName = $"{Guid.NewGuid()}{ext}";
@@ -495,6 +486,5 @@ public class BlobStorageService
 
 
 }
-
 
 
