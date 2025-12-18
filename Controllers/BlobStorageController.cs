@@ -1,142 +1,252 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
-using System.Collections.Generic;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using FrancProject.Dto;
 using FrancProject.Models;
+using System;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/blob")]
+[Authorize]
 public class BlobStorageController : ControllerBase
 {
-    private readonly BlobStorageService _blobStorageService;
+    private readonly BlobStorageService _blob;
 
     public BlobStorageController(BlobStorageService blobStorageService)
     {
-        _blobStorageService = blobStorageService;
+        _blob = blobStorageService;
     }
 
+    // ---------------------------------------
+    // UPLOAD MOCK INTERVIEW
+    // ---------------------------------------
     [HttpPost("upload-mock-interview")]
     public async Task<IActionResult> UploadMockInterview([FromForm] MockInterviewUploadDto dto)
     {
         try
         {
-
-
-            var (videoUrls, mockInterviewId) = await _blobStorageService.UploadVideosWithUserPrefixAsync(dto);
-            return Ok(new { MockInterviewId = mockInterviewId, VideoUrls = videoUrls });
+            var result = await _blob.UploadVideosWithUserPrefixAsync(dto);
+            return Ok(new { mockInterviewId = result.MockInterviewId, videoUrls = result.VideoUrls });
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Error uploading mock interview videos: {ex.Message}");
+            return StatusCode(500, new { error = $"Error uploading mock interview: {ex.Message}" });
         }
     }
 
-
-
-    [HttpGet("all-grouped")]
+    // ---------------------------------------
+    // GET ALL VIDEOS GROUPED BY USER
+    // ---------------------------------------
+    [HttpGet("get-all-grouped")]
     public async Task<IActionResult> GetAllVideosGrouped()
     {
         try
         {
-            var groupedVideos = await _blobStorageService.GetAllVideosGroupedByUserAsync();
-            return Ok(groupedVideos);
+            var data = await _blob.GetAllVideosGroupedByUserAsync();
+            return Ok(data);
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
-            return StatusCode(500, $"Error retrieving videos: {ex.Message}");
+            return StatusCode(500, new { error = $"Error retrieving videos: {ex.Message}" });
         }
     }
 
+    // ---------------------------------------
+    // CREATE MULTIPLE QUESTIONS FOR MAJOR
+    // ---------------------------------------
     [HttpPost("create-questions")]
     public async Task<IActionResult> CreateQuestions([FromForm] CreateQuestionDto model)
     {
         try
         {
-            var questions = await _blobStorageService.CreateQuestionsForMajorAsync(model.MajorName, model.QuestionVideos);
+            var questions = await _blob.CreateQuestionsForMajorAsync(model.MajorName, model.QuestionVideos);
             return Ok(questions);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Error creating questions: {ex.Message}");
+            return StatusCode(500, new { error = $"Error creating questions: {ex.Message}" });
         }
     }
 
-
-    [HttpGet("random-questions")]
-    public async Task<IActionResult> GetRandomQuestions([FromQuery] string majorName, [FromQuery] int count = 5)
-    {
-        try
-        {
-            var questions = await _blobStorageService.GetRandomQuestionsByMajorAsync(majorName, count);
-            return Ok(questions);
-        }
-        catch (System.Exception ex)
-        {
-            return StatusCode(500, $"Error retrieving questions: {ex.Message}");
-        }
-    }
-
-    [HttpPost("create-major")]
-    public async Task<ActionResult<Major>> CreateMajor(
-        [FromForm] string name,
-        [FromForm] string description,
-        [FromForm] IFormFile imageFile,
-        [FromForm] int facultyId)
-    {
-        var major = await _blobStorageService.CreateMajorAsync(name, description, imageFile, facultyId);
-        return Ok(major);
-    }
-
+    // ---------------------------------------
+    // CREATE SINGLE QUESTION
+    // ---------------------------------------
     [HttpPost("create-question")]
-    public async Task<IActionResult> CreateQuestion([FromForm] string majorName, [FromForm] string title, [FromForm] IFormFile questionVideo)
+    public async Task<IActionResult> CreateQuestion(
+        [FromForm] string majorName,
+        [FromForm] string title,
+        [FromForm] IFormFile video)
     {
         try
         {
-            var question = await _blobStorageService.CreateQuestionForMajorAsync(majorName, title, questionVideo);
+            var question = await _blob.CreateQuestionForMajorAsync(majorName, title, video);
             return Ok(question);
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(ex.Message);
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Error creating question: {ex.Message}");
+            return StatusCode(500, new { error = $"Error creating question: {ex.Message}" });
         }
     }
 
+    // ---------------------------------------
+    // GET RANDOM QUESTIONS FOR MAJOR
+    // ---------------------------------------
+    [HttpGet("get-random-questions")]
+    public async Task<IActionResult> GetRandomQuestions([FromQuery] string majorName, [FromQuery] int count = 5)
+    {
+        try
+        {
+            var questions = await _blob.GetRandomQuestionsByMajorAsync(majorName, count);
+            return Ok(questions);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = $"Error retrieving random questions: {ex.Message}" });
+        }
+    }
+
+    // ---------------------------------------
+    // CREATE MAJOR
+    // ---------------------------------------
+    [HttpPost("create-major")]
+    public async Task<IActionResult> CreateMajor(
+        [FromForm] string name,
+        [FromForm] string description,
+        [FromForm] IFormFile image,
+        [FromForm] int facultyId)
+    {
+        try
+        {
+            var major = await _blob.CreateMajorAsync(name, description, image, facultyId);
+            return Ok(major);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = $"Error creating major: {ex.Message}" });
+        }
+    }
+
+    // ---------------------------------------
+    // GET ALL MAJORS
+    // ---------------------------------------
     [HttpGet("get-majors")]
     public async Task<IActionResult> GetMajors()
     {
         try
         {
-            var majors = await _blobStorageService.GetMajorsAsync();
+            var majors = await _blob.GetMajorsAsync();
             return Ok(majors);
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Error retrieving majors: {ex.Message}");
+            return StatusCode(500, new { error = $"Error retrieving majors: {ex.Message}" });
         }
     }
 
+    // ---------------------------------------
+    // GET ALL FACULTIES
+    // ---------------------------------------
     [HttpGet("get-faculties")]
-    public async Task<ActionResult<List<Faculty>>> GetFaculties()
+    public async Task<IActionResult> GetFaculties()
     {
         try
         {
-            var faculties = await _blobStorageService.GetFacultiesAsync();
+            var faculties = await _blob.GetFacultiesAsync();
             return Ok(faculties);
         }
         catch (Exception ex)
         {
-            return StatusCode(500, $"Error retrieving faculties: {ex.Message}");
+            return StatusCode(500, new { error = $"Error retrieving faculties: {ex.Message}" });
         }
     }
+
+    [HttpDelete("delete-question/{id}")]
+    public async Task<IActionResult> DeleteQuestion(int id)
+    {
+        try
+        {
+            await _blob.DeleteQuestionAsync(id);
+            return Ok(new { message = "Question deleted successfully." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+
+
+    [HttpPut("edit-question-title/{id}")]
+    public async Task<IActionResult> EditQuestionTitle(int id, [FromQuery] string newTitle)
+    {
+        try
+        {
+            return Ok(new
+            {
+                message = "Question title updated successfully.",
+                question = await _blob.UpdateQuestionTitleAsync(id, newTitle)
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+    [HttpPost("upload-file")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadFile(
+      [FromForm] UploadFileRequestDto model)
+    {
+        try
+        {
+            var record = await _blob.UploadFileAsync(
+                model.UserId,
+                model.Title,
+                model.ResumeFile,
+                model.CoverFile,
+                model.JobAddFile,
+                model.FolderName,
+                model.AiEvaluation
+            );
+
+            return Ok(new
+            {
+                message = "File(s) uploaded successfully",
+                fileId = record.Id,
+                title = record.Title,
+                resumeUrl = record.ResumeUrl,
+                coverUrl = record.CoverUrl,
+                jobAddUrl = record.JobAddUrl
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
 
 
 }
