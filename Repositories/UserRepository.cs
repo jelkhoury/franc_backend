@@ -49,7 +49,12 @@ public class UserRepository : IUserRepository
                 PasswordHash = hashedPassword,
                 VerificationCode = GenerateSecureVerificationCode(),
                 IsVerified = false,
-                Role = "User"
+                Role = "User",
+                CanDoMockInterview = true,
+                MockAttempts = 2,
+                CoverAttempts = 2,
+                ResumeAttempts = 2,
+
             };
 
             _context.Users.Add(user);
@@ -75,10 +80,10 @@ public class UserRepository : IUserRepository
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
             if (user == null)
-                throw new UnauthorizedAccessException("Invalid credentials or account not verified.");
+                throw new UnauthorizedAccessException("Invalid credentials.");
 
             if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
-                throw new UnauthorizedAccessException("Invalid credentials or account not verified.");
+                throw new UnauthorizedAccessException("Invalid credentials");
 
             if (!user.IsVerified)
                 throw new UnauthorizedAccessException("Account not verified.");
@@ -258,7 +263,7 @@ public class UserRepository : IUserRepository
     // --------------------------
     // HELPER: JWT TOKEN
     // --------------------------
-    private async Task<string> CreateToken(User user)
+    public async Task<string> CreateToken(User user)
     {
         try
         {

@@ -1,18 +1,31 @@
-﻿using FrancProject.Dto;
+﻿using FrancProject.Data;
+using FrancProject.Dto;
 using FrancProject.Interface;
+using FrancProject.Models;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MimeKit;
+using MimeKit.Text;
+using System.Security.Cryptography;
 using static UserRepository;
 
 [ApiController]
 [Route("api/users")]
 public class UserController : ControllerBase
 {
-    private readonly IUserRepository _userRepo;
 
-    public UserController(IUserRepository userRepository)
+    private readonly DataContext _context;
+    private readonly IUserRepository _userRepo;
+    private readonly IConfiguration _config;
+
+    public UserController(IUserRepository userRepository, IConfiguration config, DataContext context)
     {
         _userRepo = userRepository;
+        _config = config;
+        _context = context;
     }
 
     // ---------------------------------------
@@ -226,6 +239,86 @@ public class UserController : ControllerBase
             return StatusCode(500, new { error = ex.Message });
         }
     }
+
+    [HttpPost("send-verification-code")]
+    public async Task<IActionResult> SendVerificationCode([FromQuery] string email)
+    {
+        try
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+                return BadRequest(new { message = "User not found." });
+
+          
+            string code = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
+
+           
+            user.VerificationCode = code;
+            user.IsVerified = false; 
+            await _context.SaveChangesAsync();
+
+            var emailMessage = new MimeMessage();
+            emailMessage.From.Add(MailboxAddress.Parse(_config["MAIL_FROM_ADDRESS"]));
+            emailMessage.To.Add(MailboxAddress.Parse(email));
+            emailMessage.Subject = "Verification Code";
+            emailMessage.Body = new TextPart(TextFormat.Html)
+            {
+                Text = $"Your verification code is: <b>{code}</b>"
+            };
+
+            using var smtp = new SmtpClient();
+            await smtp.ConnectAsync(
+                _config["MAIL_HOST"],
+                int.Parse(_config["MAIL_PORT"]),
+                SecureSocketOptions.StartTls
+            );
+            await smtp.AuthenticateAsync(
+                _config["MAIL_USERNAME"],
+                _config["MAIL_PASSWORD"]
+            );
+            await smtp.SendAsync(emailMessage);
+            await smtp.DisconnectAsync(true);
+
+            return Ok(new
+            {
+                message = "Verification code sent successfully."
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("generate-token-by-email")]
+    public async Task<IActionResult> GenerateTokenByEmail([FromQuery] string email)
+    {
+        try
+        {
+            var user = await _context.Users
+                .Where(u => u.Email == email)
+                .Select(u => new User
+                {
+                    Id = u.Id,
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Role = u.Role
+                })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+                return BadRequest(new { message = "User not found." });
+
+            var token = await _userRepo.CreateToken(user);
+
+            return Ok(new { token });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
+    }
+
 
 
 

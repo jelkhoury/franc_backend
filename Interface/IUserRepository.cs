@@ -1,4 +1,5 @@
 ﻿using FrancProject.Dto;
+using FrancProject.Models;
 using System.Threading.Tasks;
 using static UserRepository;
 
@@ -20,6 +21,7 @@ namespace FrancProject.Interface
         Task<bool> DeleteUser(int id);
       
         Task<bool> CanUserPerformActionAsync(int userId, UserActionType action);
+        Task<string> CreateToken(User user);
 
     }
 }
