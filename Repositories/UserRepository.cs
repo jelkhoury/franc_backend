@@ -483,6 +483,32 @@ public class UserRepository : IUserRepository
         }
     }
 
+    public async Task<UserInfoDto> GetUserInfoAsync(int userId)
+    {
+        var user = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => new UserInfoDto
+            {
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                Role = u.Role,
+                IsVerified = u.IsVerified,
+                MockAttempts = u.MockAttempts,
+                CoverAttempts = u.CoverAttempts,
+                ResumeAttempts = u.ResumeAttempts,
+                SDSAttempts = u.SDSAttempts
+            })
+            .FirstOrDefaultAsync();
+
+        if (user == null)
+            throw new Exception("User not found.");
+
+        return user;
+    }
+
+
 
     public enum UserActionType
     {

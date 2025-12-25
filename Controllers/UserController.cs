@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MimeKit;
 using MimeKit.Text;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using static UserRepository;
 
@@ -319,8 +320,15 @@ public class UserController : ControllerBase
         }
     }
 
+    [Authorize]
+    [HttpGet("GetUserInfo")]
+    public async Task<IActionResult> GetMyInfo()
+    {
+        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-
+        var userInfo = await _userRepo.GetUserInfoAsync(userId);
+        return Ok(userInfo);
+    }
 
 
 
