@@ -1,15 +1,16 @@
 ﻿using Azure.Storage.Blobs;
-using Microsoft.Extensions.Configuration;
-using System;
-using System.IO;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using System.Collections.Generic;
+using Azure.Storage.Blobs.Models;
 using FrancProject.Data;
-using FrancProject.Models;
-using Microsoft.EntityFrameworkCore;
 using FrancProject.Dto;
 using FrancProject.Interface;
+using FrancProject.Models;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 
 public class BlobStorageService
 {
@@ -21,7 +22,8 @@ public class BlobStorageService
     public BlobStorageService(IConfiguration config, DataContext context, IUserRepository userRepository)
     {
         _blobClient = new BlobServiceClient(config.GetConnectionString("AzureBlobStorage"));
-        _container = config["BlobContainerName"];
+        _container = config["AzureBlobStorage:ContainerName"];
+
         _context = context;
         _userRepo = userRepository;
     }
@@ -480,6 +482,59 @@ public class BlobStorageService
 
         return record;
     }
+
+
+    public async Task<List<AdminFileDto>> GetAllFilesForAdminAsync()
+    {
+        var result = await _context.Files
+            .Include(f => f.User)
+            .Select(f => new AdminFileDto
+            {
+                Id = f.Id,
+                Title = f.Title,
+                ResumeUrl = f.ResumeUrl,
+                CoverUrl = f.CoverUrl,
+                JobAddUrl = f.JobAddUrl,
+                AiEvaluation = f.AiEvaluation,
+                UserEmail = f.User.Email
+            })
+            .ToListAsync();
+
+        return result;
+    }
+
+    public async Task<string> UploadJobComparisonExcelAsync(
+      int jobComparisonId,
+      byte[] excelBytes)
+    {
+        if (excelBytes == null || excelBytes.Length == 0)
+            throw new ArgumentException("Excel content is empty.");
+
+        var container = _blobClient.GetBlobContainerClient(_container);
+        await container.CreateIfNotExistsAsync();
+
+        string blobName =
+            $"job-comparisons/JobComparison_{jobComparisonId}_{Guid.NewGuid():N}.xlsx";
+
+        var blob = container.GetBlobClient(blobName);
+
+        var headers = new BlobHttpHeaders
+        {
+            ContentType =
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ContentDisposition =
+                "attachment; filename=\"Job Comparison Scorecard.xlsx\"",
+            CacheControl = "no-cache, no-store, must-revalidate"
+        };
+
+        // 🔥 IMPORTANT: upload bytes directly, not via stream
+        await blob.UploadAsync(
+            BinaryData.FromBytes(excelBytes),
+            new BlobUploadOptions { HttpHeaders = headers });
+
+        return blob.Uri.ToString();
+    }
+
 
 
 

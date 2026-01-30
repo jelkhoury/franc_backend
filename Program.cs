@@ -14,8 +14,16 @@ var builder = WebApplication.CreateBuilder(args);
 // DATABASE
 // --------------------------------------------------
 builder.Services.AddDbContext<DataContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-);
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+        }));
+
 
 // --------------------------------------------------
 // DEPENDENCY INJECTION
@@ -23,7 +31,10 @@ builder.Services.AddDbContext<DataContext>(options =>
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IEvaluationRepository, EvaluationRepository>();
 builder.Services.AddScoped<ISdsRepository, SdsRepository>();
+builder.Services.AddScoped<IJobComparisonRepository, JobComparisonRepository>();
+builder.Services.AddScoped<JobComparisonExcelService>();
 builder.Services.AddScoped<BlobStorageService>();
+
 
 builder.Services.AddControllers();
 

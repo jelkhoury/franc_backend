@@ -330,6 +330,25 @@ public class UserController : ControllerBase
         return Ok(userInfo);
     }
 
+    [HttpGet("chats")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllChats()
+    {
+        try
+        {
+            var result = await _userRepo.GetAllChatsAsync();
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                error = "An error occurred while retrieving chats.",
+                details = ex.Message
+            });
+        }
+    }
+
 
 
 }

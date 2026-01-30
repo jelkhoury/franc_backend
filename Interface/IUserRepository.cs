@@ -23,6 +23,7 @@ namespace FrancProject.Interface
         Task<bool> CanUserPerformActionAsync(int userId, UserActionType action);
         Task<string> CreateToken(User user);
         Task<UserInfoDto> GetUserInfoAsync(int userId);
+        Task<List<ChatSessionDto>> GetAllChatsAsync();
 
     }
 }

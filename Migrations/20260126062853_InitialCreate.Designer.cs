@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FrancProject.Migrations
 {
     [DbContext(typeof(DataContext))]
-    [Migration("20251122202208_InitialBaseline")]
-    partial class InitialBaseline
+    [Migration("20260126062853_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -63,6 +63,43 @@ namespace FrancProject.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Answers");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.ChatMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsAdminOnly")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MetaJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ChatMessages");
                 });
 
             modelBuilder.Entity("FrancProject.Models.EvaluateQuestion", b =>
@@ -140,6 +177,166 @@ namespace FrancProject.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Faculties");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.FileRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AiEvaluation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CoverUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("JobAddUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResumeUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Files");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.JobComparison", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JobAName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("JobBName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("JobComparisons");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.JobComparisonAnswer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CriterionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("JobComparisonId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("NotApplicable")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ScoreA")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScoreB")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Weight")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriterionId");
+
+                    b.HasIndex("JobComparisonId");
+
+                    b.ToTable("JobComparisonAnswers");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.JobComparisonCriterion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Section")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("JobComparisonCriteria");
                 });
 
             modelBuilder.Entity("FrancProject.Models.Major", b =>
@@ -327,6 +524,9 @@ namespace FrancProject.Migrations
                     b.Property<string>("AIFeedback")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
                     b.Property<string>("HollandCode")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -374,6 +574,9 @@ namespace FrancProject.Migrations
                     b.Property<bool?>("CanDoMockInterview")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("CoverAttempts")
+                        .HasColumnType("int");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -398,9 +601,15 @@ namespace FrancProject.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("ResumeAttempts")
+                        .HasColumnType("int");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("SDSAttempts")
+                        .HasColumnType("int");
 
                     b.Property<string>("VerificationCode")
                         .HasColumnType("nvarchar(max)");
@@ -434,7 +643,7 @@ namespace FrancProject.Migrations
                     b.HasOne("FrancProject.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("EvaluationReport");
@@ -442,6 +651,17 @@ namespace FrancProject.Migrations
                     b.Navigation("MockInterview");
 
                     b.Navigation("Question");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.ChatMessage", b =>
+                {
+                    b.HasOne("FrancProject.Models.User", "User")
+                        .WithMany("ChatMessages")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -474,6 +694,45 @@ namespace FrancProject.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.FileRecord", b =>
+                {
+                    b.HasOne("FrancProject.Models.User", "User")
+                        .WithMany("Files")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.JobComparison", b =>
+                {
+                    b.HasOne("FrancProject.Models.User", "User")
+                        .WithMany("JobComparisons")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.JobComparisonAnswer", b =>
+                {
+                    b.HasOne("FrancProject.Models.JobComparisonCriterion", null)
+                        .WithMany()
+                        .HasForeignKey("CriterionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("FrancProject.Models.JobComparison", "JobComparison")
+                        .WithMany("Answers")
+                        .HasForeignKey("JobComparisonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("JobComparison");
                 });
 
             modelBuilder.Entity("FrancProject.Models.Major", b =>
@@ -567,6 +826,11 @@ namespace FrancProject.Migrations
                     b.Navigation("Majors");
                 });
 
+            modelBuilder.Entity("FrancProject.Models.JobComparison", b =>
+                {
+                    b.Navigation("Answers");
+                });
+
             modelBuilder.Entity("FrancProject.Models.Major", b =>
                 {
                     b.Navigation("Questions");
@@ -590,6 +854,15 @@ namespace FrancProject.Migrations
             modelBuilder.Entity("FrancProject.Models.SDSSection", b =>
                 {
                     b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.User", b =>
+                {
+                    b.Navigation("ChatMessages");
+
+                    b.Navigation("Files");
+
+                    b.Navigation("JobComparisons");
                 });
 #pragma warning restore 612, 618
         }

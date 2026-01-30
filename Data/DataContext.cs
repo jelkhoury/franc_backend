@@ -22,6 +22,12 @@ namespace FrancProject.Data
         public DbSet<SDSResponse> SDSResponses { get; set; }
         public DbSet<SDSResult> SDSResults { get; set; }
         public DbSet<FileRecord> Files { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<JobComparison> JobComparisons { get; set; }
+        public DbSet<JobComparisonAnswer> JobComparisonAnswers { get; set; }
+        public DbSet<JobComparisonCriterion> JobComparisonCriteria { get; set; }
+
+
 
 
 
@@ -126,6 +132,30 @@ namespace FrancProject.Data
                 .WithOne(q => q.Section)
                 .HasForeignKey(q => q.SectionId)
                 .OnDelete(DeleteBehavior.Cascade);   // Admin content
+
+
+
+            // User → JobComparisons (delete user => delete comparisons)
+            modelBuilder.Entity<JobComparison>()
+                .HasOne(j => j.User)
+                .WithMany(u => u.JobComparisons)
+                .HasForeignKey(j => j.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // JobComparison → Answers (delete comparison => delete answers)
+            modelBuilder.Entity<JobComparisonAnswer>()
+                .HasOne(a => a.JobComparison)
+                .WithMany(j => j.Answers)
+                .HasForeignKey(a => a.JobComparisonId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Criterion → Answers (admin deletes criterion? answers should go)
+            modelBuilder.Entity<JobComparisonAnswer>()
+                .HasOne<JobComparisonCriterion>()
+                .WithMany()
+                .HasForeignKey(a => a.CriterionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
         }
 
     }

@@ -14,6 +14,9 @@
         public bool? CanDoMockInterview { get; set; }
 
         public int? MockAttempts { get; set; }
+        public int? CoverAttempts { get; set; }
+        public int? ResumeAttempts { get; set; }
+        public int? SDSAttempts { get; set; }
     }
 
 }

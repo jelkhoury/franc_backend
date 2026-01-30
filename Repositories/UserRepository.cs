@@ -54,6 +54,7 @@ public class UserRepository : IUserRepository
                 MockAttempts = 2,
                 CoverAttempts = 2,
                 ResumeAttempts = 2,
+                SDSAttempts=2
 
             };
 
@@ -323,7 +324,10 @@ public class UserRepository : IUserRepository
                 Role = u.Role,
                 IsVerified = u.IsVerified,
                 CanDoMockInterview = u.CanDoMockInterview,
-                MockAttempts = u.MockAttempts
+                MockAttempts = u.MockAttempts,
+               SDSAttempts=u.SDSAttempts,
+               CoverAttempts=u.CoverAttempts,
+               ResumeAttempts = u.ResumeAttempts
             })
             .ToListAsync();
     }
@@ -355,7 +359,12 @@ public class UserRepository : IUserRepository
                 VerificationCode = null,
 
                 CanDoMockInterview = dto.CanDoMockInterview ?? true,
-                MockAttempts = dto.MockAttempts ?? 0
+                MockAttempts = dto.MockAttempts ?? 0,
+                CoverAttempts=dto.CoverAttempts ?? 0,
+                ResumeAttempts = dto.ResumeAttempts ?? 0,
+                SDSAttempts= dto.SDSAttempts ?? 0
+
+
             };
 
             _context.Users.Add(user);
@@ -369,7 +378,11 @@ public class UserRepository : IUserRepository
                 Role = user.Role,
                 IsVerified = user.IsVerified,
                 CanDoMockInterview = user.CanDoMockInterview,
-                MockAttempts = user.MockAttempts
+                MockAttempts = user.MockAttempts,
+                CoverAttempts = user.CoverAttempts,
+                ResumeAttempts = user.ResumeAttempts,
+                SDSAttempts = user.SDSAttempts,
+
             };
         }
         catch (Exception ex)
@@ -400,6 +413,11 @@ public class UserRepository : IUserRepository
 
             user.CanDoMockInterview = dto.CanDoMockInterview ?? user.CanDoMockInterview;
             user.MockAttempts = dto.MockAttempts ?? user.MockAttempts;
+            user.ResumeAttempts = dto.ResumeAttempts ?? user.ResumeAttempts;
+            user.CoverAttempts = dto.CoverAttempts ?? user.CoverAttempts;
+            user.SDSAttempts = dto.SDSAttempts ?? user.SDSAttempts;
+
+
 
             await _context.SaveChangesAsync();
 
@@ -411,7 +429,11 @@ public class UserRepository : IUserRepository
                 Role = user.Role,
                 IsVerified = user.IsVerified,
                 CanDoMockInterview = user.CanDoMockInterview,
-                MockAttempts = user.MockAttempts
+                MockAttempts = user.MockAttempts,
+                CoverAttempts=user.CoverAttempts,
+                ResumeAttempts = user.ResumeAttempts,
+                SDSAttempts = user.SDSAttempts,
+
             };
         }
         catch (Exception ex)
@@ -506,6 +528,31 @@ public class UserRepository : IUserRepository
             throw new Exception("User not found.");
 
         return user;
+    }
+
+    public async Task<List<ChatSessionDto>> GetAllChatsAsync()
+    {
+        var raw = await _context.ChatMessages
+            .Include(x => x.User)
+            .OrderBy(x => x.CreatedAt)
+            .ToListAsync();
+
+        var result = raw
+            .GroupBy(x => x.SessionId)
+            .Select(g => new ChatSessionDto
+            {
+                SessionId = g.Key,
+                Email = g.First().User.Email,  
+                Messages = g.Select(m => new ChatMessageDto
+                {
+                    Role = m.Role,
+                    Content = m.Content,
+                    CreatedAt = m.CreatedAt
+                }).ToList()
+            })
+            .ToList();
+
+        return result;
     }
 
 
