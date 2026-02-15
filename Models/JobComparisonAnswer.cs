@@ -32,7 +32,9 @@ namespace FrancProject.Models
         public int ScoreB { get; set; }
 
         [Required]
-        public bool NotApplicable { get; set; } = false;
+        public bool NotApplicableA { get; set; } = false;
+        [Required]
+        public bool NotApplicableB { get; set; } = false;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

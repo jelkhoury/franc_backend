@@ -156,7 +156,8 @@ public class JobComparisonController : ControllerBase
                     Weight = a.Weight,
                     ScoreA = a.ScoreA,
                     ScoreB = a.ScoreB,
-                    NotApplicable = a.NotApplicable
+                    NotApplicableA = a.NotApplicableA,
+                    NotApplicableB = a.NotApplicableB
                 }).ToList()
             };
 

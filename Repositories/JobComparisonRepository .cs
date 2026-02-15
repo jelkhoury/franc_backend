@@ -99,7 +99,6 @@ public class JobComparisonRepository : IJobComparisonRepository
             };
 
             _context.JobComparisons.Add(comparison);
-            await _context.SaveChangesAsync();
         }
         else
         {
@@ -114,36 +113,46 @@ public class JobComparisonRepository : IJobComparisonRepository
             comparison.UpdatedAt = DateTime.UtcNow;
         }
 
-        // 🔥 UPSERT ANSWERS
+        // ✅ No tracking = faster query, shorter connection usage
+        var existingAnswers = await _context.JobComparisonAnswers
+            .AsNoTracking()
+            .Where(x => x.JobComparisonId == comparison.Id)
+            .ToDictionaryAsync(x => x.CriterionId);
+
+        var answersToAdd = new List<JobComparisonAnswer>();
+
         foreach (var a in dto.Answers)
         {
-            var existing = await _context.JobComparisonAnswers
-                .FirstOrDefaultAsync(x =>
-                    x.JobComparisonId == comparison.Id &&
-                    x.CriterionId == a.CriterionId);
-
-            if (existing == null)
+            if (!existingAnswers.TryGetValue(a.CriterionId, out var existing))
             {
-                _context.JobComparisonAnswers.Add(new JobComparisonAnswer
+                answersToAdd.Add(new JobComparisonAnswer
                 {
                     JobComparisonId = comparison.Id,
                     CriterionId = a.CriterionId,
-                    NotApplicable = a.NotApplicable,
-                    Weight = a.NotApplicable ? 0 : a.Weight,
-                    ScoreA = a.NotApplicable ? 0 : a.ScoreA,
-                    ScoreB = a.NotApplicable ? 0 : a.ScoreB,
+                    NotApplicableA = a.NotApplicableA,
+                    NotApplicableB = a.NotApplicableB,
+                    Weight = a.Weight,
+                    ScoreA = a.NotApplicableA ? 0 : a.ScoreA,
+                    ScoreB = a.NotApplicableB ? 0 : a.ScoreB,
                     CreatedAt = DateTime.UtcNow
                 });
             }
             else
             {
-                existing.NotApplicable = a.NotApplicable;
-                existing.Weight = a.NotApplicable ? 0 : a.Weight;
-                existing.ScoreA = a.NotApplicable ? 0 : a.ScoreA;
-                existing.ScoreB = a.NotApplicable ? 0 : a.ScoreB;
+                // Attach only when needed (avoids tracking everything)
+                _context.JobComparisonAnswers.Attach(existing);
+
+                existing.NotApplicableA = a.NotApplicableA;
+                existing.NotApplicableB = a.NotApplicableB;
+                existing.Weight = a.Weight;
+                existing.ScoreA = a.NotApplicableA ? 0 : a.ScoreA;
+                existing.ScoreB = a.NotApplicableB ? 0 : a.ScoreB;
                 existing.UpdatedAt = DateTime.UtcNow;
             }
         }
+
+        if (answersToAdd.Count > 0)
+            _context.JobComparisonAnswers.AddRange(answersToAdd);
 
         if (dto.IsCompleted)
         {
@@ -151,9 +160,14 @@ public class JobComparisonRepository : IJobComparisonRepository
             comparison.CompletedAt = DateTime.UtcNow;
         }
 
+        // ✅ SINGLE SaveChanges = shorter connection lifetime
         await _context.SaveChangesAsync();
+
         return comparison.Id;
     }
+
+
+
 
 
 
@@ -171,7 +185,6 @@ public class JobComparisonRepository : IJobComparisonRepository
     public async Task<List<JobComparison>> GetAllJobComparisonsAsync(int userId)
     {
         return await _context.JobComparisons
-            .Where(j => j.UserId == userId)
             .OrderByDescending(j => j.CreatedAt)
             .ToListAsync();
     }

@@ -18,8 +18,7 @@ public class JobComparisonExcelService
         _blobStorage = blobService;
     }
 
-    public async Task<ExcelExportResultDto>
- GenerateJobComparisonExcelAsync(int userId, int jobComparisonId)
+    public async Task<ExcelExportResultDto> GenerateJobComparisonExcelAsync(int userId, int jobComparisonId)
     {
         var comparison = await _context.JobComparisons
             .Include(j => j.Answers)
@@ -30,6 +29,14 @@ public class JobComparisonExcelService
         if (comparison == null)
             throw new Exception("Job comparison not found");
 
+        var criteria = await _context.JobComparisonCriteria
+            .Where(c => c.IsActive)
+            .OrderBy(c => c.DisplayOrder)
+            .ToListAsync();
+
+        var answersLookup = comparison.Answers
+            .ToDictionary(a => a.CriterionId);
+
         var templatePath = Path.Combine(
             _env.ContentRootPath,
             "Templates",
@@ -37,48 +44,48 @@ public class JobComparisonExcelService
 
         using var workbook = new XLWorkbook(templatePath);
         var sheet = workbook.Worksheet(1);
-
-        // Rows that represent section titles (must be skipped)
         var sectionRows = new HashSet<int> { 9, 15, 22, 35, 39 };
 
         int row = 6;
 
-        foreach (var a in comparison.Answers.OrderBy(x => x.CriterionId))
+        foreach (var criterion in criteria)
         {
-            // 🔥 Skip section header rows
             while (sectionRows.Contains(row))
-            {
                 row++;
-            }
 
-            if (a.NotApplicable)
+            answersLookup.TryGetValue(criterion.Id, out var a);
+
+            if (a != null)
+            {
+                sheet.Cell(row, "B").Value = a.Weight;
+
+                sheet.Cell(row, "C").Value =
+                    a.NotApplicableA ? 0 : a.ScoreA;
+
+                sheet.Cell(row, "E").Value =
+                    a.NotApplicableB ? 0 : a.ScoreB;
+            }
+            else
             {
                 sheet.Cell(row, "B").Value = 0;
                 sheet.Cell(row, "C").Value = 0;
                 sheet.Cell(row, "E").Value = 0;
-            }
-            else
-            {
-                sheet.Cell(row, "B").Value = a.Weight;
-                sheet.Cell(row, "C").Value = a.ScoreA;
-                sheet.Cell(row, "E").Value = a.ScoreB;
             }
 
             row++;
         }
 
         byte[] excelBytes;
+
         using (var ms = new MemoryStream())
         {
             workbook.SaveAs(ms);
             excelBytes = ms.ToArray();
         }
 
-        // 🔥 USE EXISTING FUNCTION
         var excelUrl =
             await _blobStorage.UploadJobComparisonExcelAsync(jobComparisonId, excelBytes);
 
-        // 🔥 save URL in DB
         comparison.ExcelResultUrl = excelUrl;
         await _context.SaveChangesAsync();
 
@@ -87,9 +94,8 @@ public class JobComparisonExcelService
             Bytes = excelBytes,
             ExcelUrl = excelUrl
         };
-
-
     }
+
 
     public class ExcelExportResultDto
     {

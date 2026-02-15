@@ -7,7 +7,8 @@
         public int Weight { get; set; }
         public int ScoreA { get; set; }
         public int ScoreB { get; set; }
-        public bool NotApplicable { get; set; }
+        public bool NotApplicableA { get; set; }
+        public bool NotApplicableB { get; set; }
     }
 
 }
