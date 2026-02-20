@@ -26,6 +26,10 @@ namespace FrancProject.Data
         public DbSet<JobComparison> JobComparisons { get; set; }
         public DbSet<JobComparisonAnswer> JobComparisonAnswers { get; set; }
         public DbSet<JobComparisonCriterion> JobComparisonCriteria { get; set; }
+        public DbSet<JobPost> JobPosts { get; set; }
+        public DbSet<JobSearchCache> JobSearchCaches { get; set; }
+        public DbSet<JobSearchResult> JobSearchResults { get; set; }
+
 
 
 
@@ -155,6 +159,34 @@ namespace FrancProject.Data
                 .WithMany()
                 .HasForeignKey(a => a.CriterionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<JobPost>()
+    .HasIndex(j => j.LinkedinUrl)
+    .IsUnique();
+
+            // Unique SearchKey (provided by Flask)
+            modelBuilder.Entity<JobSearchCache>()
+                .HasIndex(s => s.SearchKey)
+                .IsUnique();
+
+            // Composite Key for mapping table
+            modelBuilder.Entity<JobSearchResult>()
+                .HasKey(sr => new { sr.SearchId, sr.JobPostId });
+
+            // Relationship: SearchCache → JobSearchResult
+            modelBuilder.Entity<JobSearchResult>()
+                .HasOne(sr => sr.Search)
+                .WithMany(s => s.Results)
+                .HasForeignKey(sr => sr.SearchId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // When search expires → delete mappings
+
+            // Relationship: JobPost → JobSearchResult
+            modelBuilder.Entity<JobSearchResult>()
+                .HasOne(sr => sr.JobPost)
+                .WithMany(j => j.SearchResults)
+                .HasForeignKey(sr => sr.JobPostId)
+                .OnDelete(DeleteBehavior.Restrict);
 
         }
 

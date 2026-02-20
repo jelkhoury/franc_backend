@@ -1,12 +1,13 @@
+using FrancProject.Data;
+using FrancProject.Interface;
+using FrancProject.Interfaces;
+using FrancProject.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-
-using FrancProject.Data;
-using FrancProject.Interface;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,6 +35,8 @@ builder.Services.AddScoped<ISdsRepository, SdsRepository>();
 builder.Services.AddScoped<IJobComparisonRepository, JobComparisonRepository>();
 builder.Services.AddScoped<JobComparisonExcelService>();
 builder.Services.AddScoped<BlobStorageService>();
+builder.Services.AddScoped<IJobSearchRepository, JobSearchRepository>();
+
 
 
 builder.Services.AddControllers();
