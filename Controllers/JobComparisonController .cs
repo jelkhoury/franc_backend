@@ -25,9 +25,7 @@ public class JobComparisonController : ControllerBase
         return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
     }
 
-    // ---------------------------------------
-    // GET CRITERIA
-    // ---------------------------------------
+
     [HttpGet("criteria")]
     public async Task<IActionResult> GetCriteria()
     {
@@ -54,7 +52,7 @@ public class JobComparisonController : ControllerBase
     }
 
     [HttpPost("criteria/bulk")]
-    [Authorize(Roles = "Admin")] // optional
+    [Authorize(Roles = "Admin")] 
     public async Task<IActionResult> BulkCreateCriteria(
     [FromBody] List<CreateJobComparisonCriterionDto> dtos)
     {
@@ -95,9 +93,6 @@ public class JobComparisonController : ControllerBase
         }
     }
 
-    // ---------------------------------------
-    // SAVE JOB COMPARISON (CREATE / UPDATE)
-    // ---------------------------------------
     [HttpPost("save")]
     public async Task<IActionResult> SaveJobComparison(
         [FromBody] SaveJobComparisonDto dto)
@@ -125,9 +120,6 @@ public class JobComparisonController : ControllerBase
         }
     }
 
-    // ---------------------------------------
-    // GET SINGLE JOB COMPARISON
-    // ---------------------------------------
     [HttpGet("{id}")]
     public async Task<IActionResult> GetJobComparison([FromRoute] int id)
     {
@@ -169,9 +161,7 @@ public class JobComparisonController : ControllerBase
         }
     }
 
-    // ---------------------------------------
-    // GET ALL JOB COMPARISONS (USER)
-    // ---------------------------------------
+
     [HttpGet]
     public async Task<IActionResult> GetAllJobComparisons()
     {
@@ -199,9 +189,7 @@ public class JobComparisonController : ControllerBase
         }
     }
 
-    // ---------------------------------------
-    // DELETE JOB COMPARISON
-    // ---------------------------------------
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteJobComparison([FromRoute] int id)
     {

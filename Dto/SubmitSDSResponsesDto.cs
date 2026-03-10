@@ -6,6 +6,7 @@ namespace FrancProject.Dto
     public class SubmitSDSResponsesDto
     {
         public int UserId { get; set; }
+        public bool IsCompleted { get; set; }
         public List<SubmitSDSResponseItemDto> Responses { get; set; }
     }
 }

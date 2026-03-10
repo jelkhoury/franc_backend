@@ -271,6 +271,36 @@ public class SdsController : ControllerBase
     }
 
 
+    // ---------------------------------------
+    // DELETE LAST INCOMPLETE SDS ATTEMPT
+    // ---------------------------------------
+    [HttpDelete("delete-last-incomplete")]
+    public async Task<IActionResult> DeleteLastIncomplete([FromQuery] int userId)
+    {
+        try
+        {
+            if (userId <= 0)
+                return BadRequest(new { error = "Invalid userId." });
+
+            var result = await _repo.DeleteLastIncompleteSDSAsync(userId);
+
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = $"Error deleting incomplete SDS attempt: {ex.Message}" });
+        }
+    }
+
+
 
 
 

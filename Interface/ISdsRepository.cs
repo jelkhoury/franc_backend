@@ -25,6 +25,7 @@ namespace FrancProject.Interface
     CalculateHollandPointsBySectionNameForAttemptAsync(int userId, int attemptNumber);
         Task<bool> SaveAIFeedbackAsync(int userId, string aiFeedback);
         Task<bool> DeleteSDSQuestion(int questionId);
+        Task<object> DeleteLastIncompleteSDSAsync(int userId);
 
 
 

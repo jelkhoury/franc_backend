@@ -109,6 +109,14 @@ public class SdsRepository : ISdsRepository
             .OrderBy(q => q.Id)
             .ToListAsync();
     }
+
+    string? NormalizeSelectedValue(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return null;
+        v = v.Trim();
+        if (v.Equals("null", StringComparison.OrdinalIgnoreCase)) return null;
+        return v.ToUpperInvariant();
+    }
     public async Task<object> SaveUserResponsesAsync(SubmitSDSResponsesDto dto)
     {
         if (dto == null)
@@ -120,104 +128,120 @@ public class SdsRepository : ISdsRepository
         if (dto.Responses == null || dto.Responses.Count == 0)
             throw new ArgumentException("At least one response is required.", nameof(dto));
 
-        // 1. Determine new attempt number
-        int lastAttempt = await _context.SDSResponses
-            .Where(r => r.UserId == dto.UserId)
-            .MaxAsync(r => (int?)r.AttemptNumber) ?? 0;
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == dto.UserId);
 
-        int newAttempt = lastAttempt + 1;
+        if (user == null)
+            throw new InvalidOperationException("User not found.");
 
-        // 2. Load question metadata for validation
-        var questionIds = dto.Responses.Select(r => r.QuestionId).Distinct().ToList();
-
-        var questions = await _context.SDSQuestions
-            .AsNoTracking()
-            .Where(q => questionIds.Contains(q.Id))
-            .Select(q => new { q.Id, q.Type })
-            .ToDictionaryAsync(q => q.Id, q => q.Type);
-
-        if (questions.Count != questionIds.Count)
-            throw new InvalidOperationException("One or more QuestionIds do not exist.");
-
-        // 3. Prepare response entities
-        var now = DateTime.UtcNow;
-        var entities = new List<SDSResponse>();
-
-        foreach (var r in dto.Responses)
+        if (dto.IsCompleted && user.SDSAttempts <= 0)
         {
-            if (!questions.TryGetValue(r.QuestionId, out var qType))
-                throw new InvalidOperationException($"Question {r.QuestionId} not found.");
-
-            if ((qType == QuestionType.TextBox || qType == QuestionType.TextArea) &&
-                string.IsNullOrWhiteSpace(r.CustomAnswer))
+            return new
             {
-                throw new InvalidOperationException($"Question {r.QuestionId} requires a text answer.");
-            }
-
-            entities.Add(new SDSResponse
-            {
-                UserId = dto.UserId,
-                QuestionId = r.QuestionId,
-                AttemptNumber = newAttempt,
-                SelectedValue = string.IsNullOrWhiteSpace(r.SelectedValue)
-                    ? null
-                    : r.SelectedValue.Trim().ToUpperInvariant(),
-                CustomAnswer = string.IsNullOrWhiteSpace(r.CustomAnswer)
-                    ? null
-                    : r.CustomAnswer.Trim(),
-                SubmittedAt = now
-            });
+                Success = false,
+                Message = "You don't have enough SDS attempts remaining."
+            };
         }
 
-        // 4. Save all responses
-        await _context.SDSResponses.AddRangeAsync(entities);
-        await _context.SaveChangesAsync();
+        var attempt = await _context.SDSResults
+            .Include(r => r.Responses)
+            .Where(r => r.UserId == dto.UserId && !r.IsCompleted)
+            .OrderByDescending(r => r.Id)
+            .FirstOrDefaultAsync();
 
-        // 5. Compute Holland Code for this attempt
-        var hollandCode = await CalculateHollandCodeAsync(dto.UserId, newAttempt);
-
-        // 6. Create SDSResult record (IMPORTANT: do NOT set Responses list)
-        var result = new SDSResult
+        if (attempt == null)
         {
-            UserId = dto.UserId,
-            AttemptNumber = newAttempt,
-            HollandCode = hollandCode,
-            AIFeedback = null
-        };
+            int lastAttemptNumber = await _context.SDSResults
+                .Where(r => r.UserId == dto.UserId)
+                .MaxAsync(r => (int?)r.AttemptNumber) ?? 0;
 
-        _context.SDSResults.Add(result);
+            attempt = new SDSResult
+            {
+                UserId = dto.UserId,
+                AttemptNumber = lastAttemptNumber + 1,
+                CreatedAt = DateTime.UtcNow,
+                IsCompleted = false
+            };
+
+            _context.SDSResults.Add(attempt);
+            await _context.SaveChangesAsync();
+        }
+
+        // ?? UPSERT responses
+        var existingResponses = (attempt.Responses ?? new List<SDSResponse>())
+    .ToDictionary(r => r.QuestionId);
+        var now = DateTime.UtcNow;
+        foreach (var r in dto.Responses)
+        {
+            var normalizedSelectedValue = NormalizeSelectedValue(r.SelectedValue);
+            var normalizedCustomAnswer = string.IsNullOrWhiteSpace(r.CustomAnswer) ? null : r.CustomAnswer.Trim();
+
+            if (existingResponses.TryGetValue(r.QuestionId, out var existing))
+            {
+                existing.SelectedValue = normalizedSelectedValue;
+                existing.CustomAnswer = normalizedCustomAnswer;
+                existing.SubmittedAt = now;
+            }
+            else
+            {
+                _context.SDSResponses.Add(new SDSResponse
+                {
+                    SDSResultId = attempt.Id,
+                    UserId = dto.UserId,
+                    QuestionId = r.QuestionId,
+                    SelectedValue = normalizedSelectedValue,
+                    CustomAnswer = normalizedCustomAnswer,
+                    SubmittedAt = now
+                });
+            }
+        }
+
         await _context.SaveChangesAsync();
 
-        // 7. Link responses to SDSResult (high performance Update)
-        await _context.SDSResponses
-            .Where(r => r.UserId == dto.UserId && r.AttemptNumber == newAttempt)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(r => r.SDSResultId, result.Id)
-            );
-
-        // 8. Fetch final subset to return (IDs 362 & 363)
-        var wantedIds = new[] { 362, 363 };
-        var wantedResponses = await _context.SDSResponses
-            .AsNoTracking()
-            .Where(r => r.UserId == dto.UserId &&
-                        r.AttemptNumber == newAttempt &&
-                        wantedIds.Contains(r.QuestionId))
-            .Select(r => new
+        // ?? If it's only draft ? return
+        if (!dto.IsCompleted)
+        {
+            return new
             {
-                r.QuestionId,
-                r.SelectedValue,
-                r.CustomAnswer,
-                r.SubmittedAt
-            })
-            .ToListAsync();
+                Success = true,
+                Attempt = attempt.AttemptNumber,
+                SDSResultId = attempt.Id,
+                Message = "Draft saved successfully."
+            };
+        }
 
-        // 9. Return final result object
+        // ?? FINAL SUBMIT LOGIC
+
+        int totalQuestions = await _context.SDSQuestions.CountAsync();
+        int answeredCount = await _context.SDSResponses
+            .Where(r => r.SDSResultId == attempt.Id)
+            .CountAsync();
+
+        if (answeredCount < totalQuestions)
+        {
+            return new
+            {
+                Success = false,
+                Message = "You must answer all questions before submitting."
+            };
+        }
+
+        var hollandCode = await CalculateHollandCodeAsync(dto.UserId, attempt.AttemptNumber);
+
+        attempt.HollandCode = hollandCode;
+        attempt.IsCompleted = true;
+        attempt.CompletedAt = DateTime.UtcNow;
+
+        user.SDSAttempts -= 1;
+
+        await _context.SaveChangesAsync();
+
         return new
         {
-            Attempt = newAttempt,
+            Success = true,
+            Attempt = attempt.AttemptNumber,
             HollandCode = hollandCode,
-            SDSResultId = result.Id,
-            Responses = wantedResponses
+            SDSResultId = attempt.Id
         };
     }
 
@@ -490,16 +514,14 @@ public class SdsRepository : ISdsRepository
         if (string.IsNullOrWhiteSpace(aiFeedback))
             throw new ArgumentException("AIFeedback is required.");
 
-        // 1?? Get latest SDSResult (highest AttemptNumber)
         var latestResult = await _context.SDSResults
             .Where(r => r.UserId == userId)
             .OrderByDescending(r => r.AttemptNumber)
             .FirstOrDefaultAsync();
 
         if (latestResult == null)
-            return false; // no attempts exist
+            return false; 
 
-        // 2?? Save feedback
         latestResult.AIFeedback = aiFeedback.Trim();
 
         await _context.SaveChangesAsync();
@@ -529,6 +551,42 @@ public class SdsRepository : ISdsRepository
         await _context.SaveChangesAsync();
 
         return true;
+    }
+    public async Task<object> DeleteLastIncompleteSDSAsync(int userId)
+    {
+        if (userId <= 0)
+            throw new ArgumentException("Invalid userId.");
+
+        // ?? Get latest incomplete attempt
+        var attempt = await _context.SDSResults
+            .Where(r => r.UserId == userId && !r.IsCompleted)
+            .OrderByDescending(r => r.Id)
+            .FirstOrDefaultAsync();
+
+        if (attempt == null)
+        {
+            return new
+            {
+                Success = false,
+                Message = "No incomplete SDS attempt found."
+            };
+        }
+
+        // ?? Delete related responses first (if no cascade)
+        await _context.SDSResponses
+            .Where(r => r.SDSResultId == attempt.Id)
+            .ExecuteDeleteAsync();
+
+        // ?? Delete attempt
+        _context.SDSResults.Remove(attempt);
+
+        await _context.SaveChangesAsync();
+
+        return new
+        {
+            Success = true,
+            Message = "Incomplete SDS attempt deleted successfully."
+        };
     }
 
 
