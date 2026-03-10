@@ -99,6 +99,7 @@ public class JobComparisonRepository : IJobComparisonRepository
             };
 
             _context.JobComparisons.Add(comparison);
+            await _context.SaveChangesAsync();
         }
         else
         {
