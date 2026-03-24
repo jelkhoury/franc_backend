@@ -22,7 +22,7 @@ public class BlobStorageService
     public BlobStorageService(IConfiguration config, DataContext context, IUserRepository userRepository)
     {
         _blobClient = new BlobServiceClient(config.GetConnectionString("AzureBlobStorage"));
-        _container = config["BlobContainerName"];
+        _container = config["AzureBlobStorage:ContainerName"];
 
         _context = context;
         _userRepo = userRepository;
