@@ -25,7 +25,6 @@ builder.Services.AddDbContext<DataContext>(options =>
                 errorNumbersToAdd: null);
         }));
 
-
 // --------------------------------------------------
 // DEPENDENCY INJECTION
 // --------------------------------------------------
@@ -37,8 +36,6 @@ builder.Services.AddScoped<JobComparisonExcelService>();
 builder.Services.AddScoped<BlobStorageService>();
 builder.Services.AddScoped<IJobSearchRepository, JobSearchRepository>();
 
-
-
 builder.Services.AddControllers();
 
 // --------------------------------------------------
@@ -46,10 +43,13 @@ builder.Services.AddControllers();
 // --------------------------------------------------
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader());
+    options.AddPolicy("FrontendPolicy", policy =>
+        policy.WithOrigins(
+                "https://ccdfranc.com",
+                "https://www.ccdfranc.com"
+            )
+            .AllowAnyMethod()
+            .AllowAnyHeader());
 });
 
 // --------------------------------------------------
@@ -144,10 +144,13 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+
+app.UseRouting();
+app.UseCors("FrontendPolicy");
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.Run();
