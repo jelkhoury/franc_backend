@@ -7,9 +7,42 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Sentry;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.WebHost.UseSentry(options =>
+{
+    // Prefer Azure App Settings / environment variables, fallback to appsettings.json.
+    // Azure App Settings examples:
+    // - SENTRY_DSN
+    // - Sentry__TracesSampleRate
+    // - Sentry__ProfilesSampleRate
+    options.Dsn =
+        builder.Configuration["SENTRY_DSN"]
+        ?? builder.Configuration["Sentry:Dsn"];
+
+    options.Debug = builder.Environment.IsDevelopment();
+    options.Environment =
+        builder.Configuration["SENTRY_ENVIRONMENT"]
+        ?? builder.Configuration["Sentry:Environment"]
+        ?? builder.Environment.EnvironmentName;
+
+    options.Release =
+        builder.Configuration["SENTRY_RELEASE"]
+        ?? builder.Configuration["Sentry:Release"];
+
+    // Error capture
+    options.AttachStacktrace = true;
+
+    // Performance (tracing) + optional profiling (set sample rates in config)
+    options.TracesSampleRate = builder.Configuration.GetValue<double?>("Sentry:TracesSampleRate") ?? 0.0;
+    options.ProfilesSampleRate = builder.Configuration.GetValue<double?>("Sentry:ProfilesSampleRate") ?? 0.0;
+
+    // Safer default: don't send usernames/emails/headers unless you explicitly opt-in.
+    options.SendDefaultPii = builder.Configuration.GetValue<bool?>("Sentry:SendDefaultPii") ?? false;
+});
 
 // --------------------------------------------------
 // DATABASE
@@ -145,6 +178,7 @@ app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
+app.UseSentryTracing();
 
 app.UseAuthentication();
 app.UseAuthorization();
