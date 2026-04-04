@@ -68,6 +68,7 @@ builder.Services.AddScoped<IJobComparisonRepository, JobComparisonRepository>();
 builder.Services.AddScoped<JobComparisonExcelService>();
 builder.Services.AddScoped<BlobStorageService>();
 builder.Services.AddScoped<IJobSearchRepository, JobSearchRepository>();
+builder.Services.AddScoped<IMajorSkillsRepository, MajorSkillsRepository>();
 
 builder.Services.AddControllers();
 
@@ -79,7 +80,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendPolicy", policy =>
         policy.WithOrigins(
                 "https://ccdfranc.com",
-                "https://www.ccdfranc.com"
+                "https://www.ccdfranc.com",
+                "http://localhost:3000"
             )
             .AllowAnyMethod()
             .AllowAnyHeader());

@@ -29,6 +29,7 @@ namespace FrancProject.Data
         public DbSet<JobPost> JobPosts { get; set; }
         public DbSet<JobSearchCache> JobSearchCaches { get; set; }
         public DbSet<JobSearchResult> JobSearchResults { get; set; }
+        public DbSet<MajorSkillsCache> MajorSkillsCaches { get; set; }
 
 
 
@@ -187,6 +188,52 @@ namespace FrancProject.Data
                 .WithMany(j => j.SearchResults)
                 .HasForeignKey(sr => sr.JobPostId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MajorSkillsCache>(entity =>
+            {
+                entity.ToTable("MajorSkillsCaches");
+
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.SearchKey)
+                    .IsRequired()
+                    .HasMaxLength(450);
+
+                entity.HasIndex(e => e.SearchKey)
+                    .IsUnique();
+
+                entity.Property(e => e.Faculty)
+                    .IsRequired()
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.Major)
+                    .IsRequired()
+                    .HasMaxLength(200);
+
+                entity.Property(e => e.Level)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.Country)
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.ResultJson)
+                    .IsRequired();
+
+                entity.Property(e => e.PromptVersion)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(e => e.ModelName)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(e => e.CreatedAt)
+                    .IsRequired();
+
+                entity.Property(e => e.UpdatedAt)
+                    .IsRequired();
+            });
 
         }
 
