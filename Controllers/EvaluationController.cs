@@ -98,6 +98,25 @@ public class EvaluationController : ControllerBase
         }
     }
 
+    [HttpGet("GetUserInterviewsReports")]
+    public async Task<IActionResult> GetReportsByUser(int userId)
+    {
+        try
+        {
+            var reports = await _repo.GetReportsByUserIdAsync(userId);
+
+            return Ok(reports);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                message = "An error occurred while retrieving reports.",
+                error = ex.Message 
+            });
+        }
+    }
+
 }
 
 

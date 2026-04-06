@@ -234,7 +234,6 @@ public class JobComparisonController : ControllerBase
         var result = await _excelService
             .GenerateJobComparisonExcelAsync(userId, id);
 
-        // result = (byte[] bytes, string url)
 
         Response.Headers.Add("X-Excel-Url", result.ExcelUrl);
 
@@ -242,6 +241,25 @@ public class JobComparisonController : ControllerBase
             result.Bytes,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "Job Comparison Scorecard.xlsx");
+    }
+
+    [HttpGet("GetAllJobComparisonsByUserId")]
+    public async Task<IActionResult> GetAllJobComparisonsByUserId(int userId)
+    {
+        try
+        {
+            var result = await _jobComparisonRepo
+                .GetAllJobComparisonsByUserId(userId);
+
+            if (result == null || !result.Any())
+                return NotFound(new { message = "No job comparisons found for this user." });
+
+            return Ok(result); 
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message });
+        }
     }
 
 

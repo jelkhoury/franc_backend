@@ -616,6 +616,26 @@ public class SdsRepository : ISdsRepository
         return results;
     }
 
+    public async Task<IReadOnlyList<object>> GetSdsResultsByUserId(int userId)
+    {
+        var results = await _context.SDSResults
+            .AsNoTracking()
+            .Where(r => r.UserId == userId) 
+            .Include(r => r.User)
+            .OrderBy(r => r.AttemptNumber)
+            .Select(r => new
+            {
+                ResultId = r.Id,
+                UserId = r.UserId,
+                UserEmail = r.User.Email,
+                HollandCode = r.HollandCode,
+                AIFeedback = r.AIFeedback,
+                AttemptNumber = r.AttemptNumber
+            })
+            .ToListAsync();
+
+        return results;
+    }
 
 
 }

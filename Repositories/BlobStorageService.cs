@@ -22,7 +22,7 @@ public class BlobStorageService
     public BlobStorageService(IConfiguration config, DataContext context, IUserRepository userRepository)
     {
         _blobClient = new BlobServiceClient(config.GetConnectionString("AzureBlobStorage"));
-        _container = config["BlobContainerName"];
+        _container = config["AzureBlobStorage:ContainerName"];
 
         _context = context;
         _userRepo = userRepository;
@@ -33,35 +33,50 @@ public class BlobStorageService
     // ---------------------------------------
     public async Task<List<UserMockInterviewAnswersDto>> GetAllVideosGroupedByUserAsync()
     {
-        return await _context.Answers
-            .Include(a => a.User)
-            .Include(a => a.Question)
-            .Include(a => a.MockInterview)
+        var data = await _context.Answers
+            .AsNoTracking()
             .Where(a => a.MockInterviewId != null)
+            .Select(a => new
+            {
+                AnswerId = a.Id,
+                a.VideoUrl,
+                a.UserId,
+                Email = a.User.Email,
+                MockInterviewId = a.MockInterviewId,
+                MockInterviewTitle = a.MockInterview.Title,
+                NbOfTry = a.MockInterview.NbOfTry,
+                a.QuestionId,
+                QuestionTitle = a.Question.Title
+            })
+            .ToListAsync();
+
+        var result = data
             .GroupBy(a => new
             {
                 a.UserId,
-                a.User.Email,
-                mockId = a.MockInterviewId.Value,
-                title = a.MockInterview.Title,
-                tries = a.MockInterview.NbOfTry
+                a.Email,
+                MockInterviewId = a.MockInterviewId!.Value,
+                a.MockInterviewTitle,
+                a.NbOfTry
             })
             .Select(g => new UserMockInterviewAnswersDto
             {
                 UserId = g.Key.UserId,
                 Email = g.Key.Email,
-                MockInterviewId = g.Key.mockId,
-                MockInterviewTitle = g.Key.title,
-                NbOfTry = g.Key.tries,
+                MockInterviewId = g.Key.MockInterviewId,
+                MockInterviewTitle = g.Key.MockInterviewTitle,
+                NbOfTry = g.Key.NbOfTry,
                 Answers = g.Select(a => new AnswerWithQuestionDto
                 {
-                    AnswerId = a.Id,
+                    AnswerId = a.AnswerId,
                     VideoUrl = a.VideoUrl,
                     QuestionId = a.QuestionId,
-                    QuestionTitle = a.Question.Title
+                    QuestionTitle = a.QuestionTitle
                 }).ToList()
             })
-            .ToListAsync();
+            .ToList();
+
+        return result;
     }
 
     // ---------------------------------------
@@ -501,6 +516,23 @@ public class BlobStorageService
             .ToListAsync();
 
         return result;
+    }
+
+    public async Task<List<AdminFileDto>> GetFilesByUserId(int userId)
+    {
+        return await _context.Files
+            .Where(f => f.UserId == userId)
+            .Select(f => new AdminFileDto
+            {
+                Id = f.Id,
+                Title = f.Title,
+                ResumeUrl = f.ResumeUrl,
+                CoverUrl = f.CoverUrl,
+                JobAddUrl = f.JobAddUrl,
+                AiEvaluation = f.AiEvaluation,
+                UserEmail = f.User.Email
+            })
+            .ToListAsync();
     }
 
     public async Task<string> UploadJobComparisonExcelAsync(

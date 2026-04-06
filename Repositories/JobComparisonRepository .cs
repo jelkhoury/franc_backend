@@ -225,4 +225,32 @@ public class JobComparisonRepository : IJobComparisonRepository
     }
 
 
+    public async Task<List<JobComparisonDto>> GetAllJobComparisonsByUserId(int userId)
+    {
+        return await _context.JobComparisons
+            .AsNoTracking()
+            .Where(j => j.UserId == userId)
+            .OrderByDescending(j => j.CreatedAt)
+            .Select(j => new JobComparisonDto
+            {
+                Id = j.Id,
+                JobAName = j.JobAName,
+                JobBName = j.JobBName,
+                IsCompleted = j.IsCompleted,
+                CreatedAt = j.CreatedAt,
+                ExcelResultUrl = j.ExcelResultUrl,
+                UserId = j.UserId,
+                Answers = j.Answers.Select(a => new JobComparisonAnswerDto
+                {
+                    CriterionId = a.CriterionId,
+                    Weight = a.Weight,
+                    ScoreA = a.ScoreA,
+                    ScoreB = a.ScoreB,
+                    NotApplicableA = a.NotApplicableA,
+                    NotApplicableB = a.NotApplicableB
+                }).ToList()
+            })
+            .ToListAsync();
+    }
+
 }

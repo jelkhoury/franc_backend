@@ -180,5 +180,51 @@ public class EvaluationRepository : IEvaluationRepository
         await _context.SaveChangesAsync();
     }
 
-    
+
+    public async Task<List<EvaluationReportDto>> GetReportsByUserIdAsync(int userId)
+    {
+        var reports = await _context.EvaluationReports
+            .AsNoTracking()
+            .Where(r => r.UserId == userId)
+            .Include(r => r.Answers)
+                .ThenInclude(a => a.Question)
+            .OrderByDescending(r => r.GeneratedAt)
+            .ToListAsync();
+
+        var answerIds = reports
+            .SelectMany(r => r.Answers)
+            .Select(a => a.Id)
+            .ToList();
+
+        var evaluations = await _context.EvaluateQuestions
+            .Where(e => answerIds.Contains(e.AnswerId))
+            .ToListAsync();
+
+        var result = reports.Select(r => new EvaluationReportDto
+        {
+            Id = r.Id,
+            OverallRating = r.OverallRating,
+            SummaryComment = r.SummaryComment,
+            GeneratedAt = r.GeneratedAt,
+
+            Answers = r.Answers.Select(a =>
+            {
+                var eval = evaluations.FirstOrDefault(e => e.AnswerId == a.Id);
+
+                return new AnswerEvaluationDto
+                {
+                    AnswerId = a.Id,
+                    VideoUrl = a.VideoUrl,
+                    QuestionId = a.QuestionId,
+                    QuestionTitle = a.Question?.Title,
+                    Comment = eval?.Comment,
+                    Rating = eval?.Rating
+                };
+            }).ToList()
+        }).ToList();
+
+        return result;
+    }
+
+
 }

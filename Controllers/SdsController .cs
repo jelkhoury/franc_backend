@@ -224,6 +224,20 @@ public class SdsController : ControllerBase
         }
     }
 
+    [HttpGet("GetUserSDSResults")]
+    public async Task<IActionResult> GetUserSDSResults(int userId)
+    {
+        try
+        {
+            var results = await _repo.GetSdsResultsByUserId(userId);
+            return Ok(results);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = $"Error fetching SDS results: {ex.Message}" });
+        }
+    }
+
     [HttpPost("save-ai-feedback")]
     public async Task<IActionResult> SaveAIFeedback([FromBody] SaveAIFeedbackDto dto)
     {

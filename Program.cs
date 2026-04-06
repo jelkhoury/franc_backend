@@ -77,14 +77,10 @@ builder.Services.AddControllers();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
-        policy.WithOrigins(
-                "https://ccdfranc.com",
-                "https://www.ccdfranc.com"
-            )
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader());
 });
-
 // --------------------------------------------------
 // JWT AUTHENTICATION (AZURE SAFE)
 // --------------------------------------------------
