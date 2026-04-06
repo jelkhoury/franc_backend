@@ -69,6 +69,8 @@ builder.Services.AddScoped<JobComparisonExcelService>();
 builder.Services.AddScoped<BlobStorageService>();
 builder.Services.AddScoped<IJobSearchRepository, JobSearchRepository>();
 builder.Services.AddScoped<IMajorSkillsRepository, MajorSkillsRepository>();
+builder.Services.AddScoped<IGameQuizService, GameQuizService>();
+builder.Services.AddScoped<IGameQuestionImportService, GameQuestionImportService>();
 
 builder.Services.AddControllers();
 

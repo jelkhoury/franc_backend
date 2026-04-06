@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using FrancProject.Models;
 
 namespace FrancProject.Data
@@ -30,6 +30,11 @@ namespace FrancProject.Data
         public DbSet<JobSearchCache> JobSearchCaches { get; set; }
         public DbSet<JobSearchResult> JobSearchResults { get; set; }
         public DbSet<MajorSkillsCache> MajorSkillsCaches { get; set; }
+        public DbSet<GameLevel> GameLevels { get; set; }
+        public DbSet<GameQuestion> GameQuestions { get; set; }
+        public DbSet<GameSession> GameSessions { get; set; }
+        public DbSet<GameSessionAnswer> GameSessionAnswers { get; set; }
+        public DbSet<UserGameProgress> UserGameProgresses { get; set; }
 
 
 
@@ -233,6 +238,90 @@ namespace FrancProject.Data
 
                 entity.Property(e => e.UpdatedAt)
                     .IsRequired();
+            });
+
+            // --------------------------
+            // GAME QUIZ
+            // --------------------------
+            modelBuilder.Entity<GameLevel>(entity =>
+            {
+                entity.ToTable("GameLevels");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+                entity.Property(e => e.BadgeName).IsRequired().HasMaxLength(100);
+                entity.HasIndex(e => e.LevelNumber).IsUnique();
+                entity.HasData(
+                    new GameLevel { Id = 1, LevelNumber = 1, Name = "Level 1", BadgeName = "Bronze", PassScore = 7, IsActive = true },
+                    new GameLevel { Id = 2, LevelNumber = 2, Name = "Level 2", BadgeName = "Silver", PassScore = 7, IsActive = true },
+                    new GameLevel { Id = 3, LevelNumber = 3, Name = "Level 3", BadgeName = "Gold", PassScore = 7, IsActive = true },
+                    new GameLevel { Id = 4, LevelNumber = 4, Name = "Level 4", BadgeName = "Platinum", PassScore = 7, IsActive = true },
+                    new GameLevel { Id = 5, LevelNumber = 5, Name = "Level 5", BadgeName = "Diamond", PassScore = 7, IsActive = true });
+            });
+
+            modelBuilder.Entity<GameQuestion>(entity =>
+            {
+                entity.ToTable("GameQuestions");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.QuestionText).IsRequired();
+                entity.Property(e => e.OptionA).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.OptionB).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.OptionC).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.OptionD).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.CorrectOption).IsRequired().HasMaxLength(1);
+                entity.Property(e => e.Hint).HasMaxLength(1000);
+                entity.HasOne(e => e.Level)
+                    .WithMany(l => l.Questions)
+                    .HasForeignKey(e => e.LevelId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.LevelId, e.IsActive });
+            });
+
+            modelBuilder.Entity<GameSession>(entity =>
+            {
+                entity.ToTable("GameSessions");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(32);
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Level)
+                    .WithMany(l => l.Sessions)
+                    .HasForeignKey(e => e.LevelId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => e.UserId)
+                    .HasDatabaseName("IX_GameSessions_UserId");
+                entity.HasIndex(e => e.UserId)
+                    .IsUnique()
+                    .HasFilter("[Status] = 'InProgress'")
+                    .HasDatabaseName("IX_GameSessions_UserId_InProgress_Unique");
+            });
+
+            modelBuilder.Entity<GameSessionAnswer>(entity =>
+            {
+                entity.ToTable("GameSessionAnswers");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.SelectedOption).HasMaxLength(1);
+                entity.HasIndex(e => new { e.SessionId, e.QuestionOrder }).IsUnique();
+                entity.HasOne(e => e.Session)
+                    .WithMany(s => s.Answers)
+                    .HasForeignKey(e => e.SessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(e => e.Question)
+                    .WithMany(q => q.SessionAnswers)
+                    .HasForeignKey(e => e.QuestionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<UserGameProgress>(entity =>
+            {
+                entity.ToTable("UserGameProgresses");
+                entity.HasKey(e => e.Id);
+                entity.HasOne<User>()
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.UserId).IsUnique();
             });
 
         }
