@@ -7,7 +7,8 @@ namespace FrancProject.DTOs
 
     public class SubmitGameAnswerRequestDto
     {
-        public string SelectedOption { get; set; } = null!;
+        public string? SelectedOption { get; set; } = null!;
+        public bool TimedOut { get; set; }
     }
 
     public class UseGameAbilityRequestDto
@@ -71,6 +72,7 @@ namespace FrancProject.DTOs
 
     public class UserGameProgressDto
     {
+        public long ?ActiveSessionId { get; set; }
         public int CurrentLevel { get; set; }
         public int HighestUnlockedLevel { get; set; }
         public bool BronzeBadgeEarned { get; set; }
@@ -80,5 +82,6 @@ namespace FrancProject.DTOs
         public bool DiamondBadgeEarned { get; set; }
         public int TotalPoints { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
+        public Dictionary<int, int>? LevelScores { get; set; }
     }
 }

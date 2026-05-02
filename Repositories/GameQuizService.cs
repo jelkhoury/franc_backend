@@ -30,14 +30,31 @@ namespace FrancProject.Repositories
             };
         }
 
+
         public async Task<UserGameProgressDto> GetProgressAsync(int userId)
         {
             await EnsureProgressRowAsync(userId);
             var p = await _context.UserGameProgresses.AsNoTracking()
                 .FirstAsync(x => x.UserId == userId);
-            return MapProgress(p);
+            // Required for React "Continue quiz": JSON camelCase activeSessionId
+            var activeSessionId = await _context.GameSessions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.Status == GameQuizConstants.StatusInProgress)
+                .Select(s => (long?)s.Id)
+                .FirstOrDefaultAsync();
+            var levelScores = await LoadLevelBestScoresForProgressAsync(userId);
+            return MapProgress(p, activeSessionId, levelScores);
         }
+        private async Task<Dictionary<int, int>> LoadLevelBestScoresForProgressAsync(int userId)
+        {
+            var rows = await _context.GameSessions.AsNoTracking()
+                .Where(s => s.UserId == userId && s.FinishedAt != null)
+                .Select(s => new { LevelNumber = s.Level.LevelNumber, s.CorrectAnswers })
+                .ToListAsync();
 
+            return rows
+                .GroupBy(r => r.LevelNumber)
+                .ToDictionary(g => g.Key, g => g.Max(x => x.CorrectAnswers));
+        }
         public async Task<GameSessionStateDto> StartSessionAsync(int userId, StartGameSessionRequestDto request)
         {
             var levelNumber = request.LevelNumber;
@@ -121,7 +138,7 @@ namespace FrancProject.Repositories
         }
 
         public async Task<GameSessionStateDto> SubmitAnswerAsync(int userId, long sessionId, long sessionAnswerId,
-            SubmitGameAnswerRequestDto request)
+                 SubmitGameAnswerRequestDto request)
         {
             var strategy = _context.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>
@@ -142,42 +159,75 @@ namespace FrancProject.Repositories
                     if (answer.UsedSkip)
                         throw new InvalidOperationException("This question was skipped.");
 
-                    var opt = NormalizeOption(request.SelectedOption);
-                    if (!GameQuizConstants.IsValidOptionLetter(opt))
-                        throw new InvalidOperationException("SelectedOption must be A, B, C, or D.");
-
                     var correct = answer.Question.CorrectOption.Trim().ToUpperInvariant();
                     var now = DateTimeOffset.UtcNow;
 
-                    if (answer.AnswerAttemptCount == 0)
+                    if (request.TimedOut)
                     {
-                        answer.SelectedOption = opt;
-                        answer.AnswerAttemptCount = 1;
-                        if (string.Equals(opt, correct, StringComparison.Ordinal))
+                        var wrongLetter = new[] { "A", "B", "C", "D" }.First(x => x != correct);
+
+                        if (answer.AnswerAttemptCount == 0)
                         {
-                            answer.IsCorrect = true;
-                            answer.AnsweredAt = now;
+                            answer.SelectedOption = wrongLetter;
+                            answer.AnswerAttemptCount = 1;
+                            if (answer.UsedDoubleChance)
+                            {
+                                answer.IsCorrect = false;
+                            }
+                            else
+                            {
+                                answer.IsCorrect = false;
+                                answer.AnsweredAt = now;
+                            }
                         }
-                        else if (answer.UsedDoubleChance)
+                        else if (answer.AnswerAttemptCount == 1 && answer.UsedDoubleChance && !answer.AnsweredAt.HasValue)
                         {
+                            answer.SelectedOption = wrongLetter;
+                            answer.AnswerAttemptCount = 2;
                             answer.IsCorrect = false;
+                            answer.AnsweredAt = now;
                         }
                         else
                         {
-                            answer.IsCorrect = false;
-                            answer.AnsweredAt = now;
+                            throw new InvalidOperationException("No more attempts are allowed for this question.");
                         }
-                    }
-                    else if (answer.AnswerAttemptCount == 1 && answer.UsedDoubleChance && !answer.AnsweredAt.HasValue)
-                    {
-                        answer.SelectedOption = opt;
-                        answer.AnswerAttemptCount = 2;
-                        answer.IsCorrect = string.Equals(opt, correct, StringComparison.Ordinal);
-                        answer.AnsweredAt = now;
                     }
                     else
                     {
-                        throw new InvalidOperationException("No more attempts are allowed for this question.");
+                        var opt = NormalizeOption(request.SelectedOption);
+                        if (!GameQuizConstants.IsValidOptionLetter(opt))
+                            throw new InvalidOperationException("SelectedOption must be A, B, C, or D.");
+
+                        if (answer.AnswerAttemptCount == 0)
+                        {
+                            answer.SelectedOption = opt;
+                            answer.AnswerAttemptCount = 1;
+                            if (string.Equals(opt, correct, StringComparison.Ordinal))
+                            {
+                                answer.IsCorrect = true;
+                                answer.AnsweredAt = now;
+                            }
+                            else if (answer.UsedDoubleChance)
+                            {
+                                answer.IsCorrect = false;
+                            }
+                            else
+                            {
+                                answer.IsCorrect = false;
+                                answer.AnsweredAt = now;
+                            }
+                        }
+                        else if (answer.AnswerAttemptCount == 1 && answer.UsedDoubleChance && !answer.AnsweredAt.HasValue)
+                        {
+                            answer.SelectedOption = opt;
+                            answer.AnswerAttemptCount = 2;
+                            answer.IsCorrect = string.Equals(opt, correct, StringComparison.Ordinal);
+                            answer.AnsweredAt = now;
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("No more attempts are allowed for this question.");
+                        }
                     }
 
                     RecountSession(session, session.Answers.ToList());
@@ -198,7 +248,6 @@ namespace FrancProject.Repositories
 
             return await GetSessionAsync(userId, sessionId);
         }
-
         public async Task<GameSessionStateDto> UseAbilityAsync(int userId, long sessionId, long sessionAnswerId,
             UseGameAbilityRequestDto request)
         {
@@ -490,8 +539,9 @@ namespace FrancProject.Repositories
             return wrong.OrderBy(_ => rnd.Next()).Take(2).ToList();
         }
 
-        private static UserGameProgressDto MapProgress(UserGameProgress p) => new()
-        {
+        private static UserGameProgressDto MapProgress(UserGameProgress p, long? activeSessionId,
+           Dictionary<int, int>? levelScores) => new()
+           {
             CurrentLevel = p.CurrentLevel,
             HighestUnlockedLevel = p.HighestUnlockedLevel,
             BronzeBadgeEarned = p.BronzeBadgeEarned,
@@ -500,7 +550,9 @@ namespace FrancProject.Repositories
             PlatinumBadgeEarned = p.PlatinumBadgeEarned,
             DiamondBadgeEarned = p.DiamondBadgeEarned,
             TotalPoints = p.TotalPoints,
-            UpdatedAt = p.UpdatedAt
-        };
+            UpdatedAt = p.UpdatedAt,
+               ActiveSessionId = activeSessionId,
+               LevelScores = levelScores
+           };
     }
 }

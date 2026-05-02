@@ -23,7 +23,6 @@ namespace FrancProject.Controllers
         private int GetUserId() =>
             int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        /// <summary>Badges, unlocked levels, and total points for the current user.</summary>
         [HttpGet("progress")]
         public async Task<IActionResult> GetProgress()
         {
@@ -38,7 +37,6 @@ namespace FrancProject.Controllers
             }
         }
 
-        /// <summary>Start a new quiz run for a level.</summary>
         [HttpPost("start")]
         public async Task<IActionResult> StartQuiz([FromBody] StartGameSessionRequestDto request)
         {
@@ -53,7 +51,6 @@ namespace FrancProject.Controllers
             }
         }
 
-        /// <summary>Get current quiz state (questions, scores, abilities left).</summary>
         [HttpGet("session/{sessionId:long}")]
         public async Task<IActionResult> GetSessionState(long sessionId)
         {
@@ -68,7 +65,6 @@ namespace FrancProject.Controllers
             }
         }
 
-        /// <summary>Submit the chosen option for one question slot.</summary>
         [HttpPost("session/{sessionId:long}/answer/{answerId:long}")]
         public async Task<IActionResult> AnswerQuestion(long sessionId, long answerId,
             [FromBody] SubmitGameAnswerRequestDto request)
@@ -84,7 +80,6 @@ namespace FrancProject.Controllers
             }
         }
 
-        /// <summary>Use a hint, skip, fifty-fifty, etc. on one question slot.</summary>
         [HttpPost("session/{sessionId:long}/ability/{answerId:long}")]
         public async Task<IActionResult> UseAbility(long sessionId, long answerId,
             [FromBody] UseGameAbilityRequestDto request)
@@ -100,7 +95,6 @@ namespace FrancProject.Controllers
             }
         }
 
-        /// <summary>Finalize the quiz when all questions are done (or to sync server state).</summary>
         [HttpPost("session/{sessionId:long}/finish")]
         public async Task<IActionResult> FinishQuiz(long sessionId)
         {
@@ -115,7 +109,6 @@ namespace FrancProject.Controllers
             }
         }
 
-        /// <summary>Admin-only: import quiz questions from an .xlsx workbook (sheets "Level 1" … "Level 5").</summary>
         [HttpPost("questions/import")]
         [Authorize(Roles = "Admin")]
         [RequestSizeLimit(52_428_800)]
