@@ -84,4 +84,19 @@ namespace FrancProject.DTOs
         public DateTimeOffset UpdatedAt { get; set; }
         public Dictionary<int, int>? LevelScores { get; set; }
     }
+
+    /// <summary>All hint texts for questions in one quiz session (same order as session questions).</summary>
+    public class GameSessionHintsDto
+    {
+        public long SessionId { get; set; }
+        public List<GameQuestionHintItemDto> Hints { get; set; } = new();
+    }
+
+    public class GameQuestionHintItemDto
+    {
+        public long SessionAnswerId { get; set; }
+        public int QuestionOrder { get; set; }
+        public long QuestionId { get; set; }
+        public string? Hint { get; set; }
+    }
 }

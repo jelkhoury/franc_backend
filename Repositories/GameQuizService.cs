@@ -137,6 +137,22 @@ namespace FrancProject.Repositories
             return MapSession(session);
         }
 
+        public async Task<GameSessionHintsDto> GetSessionHintsAsync(int userId, long sessionId)
+        {
+            var session = await LoadSessionGraphAsync(sessionId, userId, asNoTracking: true);
+            var items = session.Answers
+                .OrderBy(a => a.QuestionOrder)
+                .Select(a => new GameQuestionHintItemDto
+                {
+                    SessionAnswerId = a.Id,
+                    QuestionOrder = a.QuestionOrder,
+                    QuestionId = a.QuestionId,
+                    Hint = a.Question.Hint
+                })
+                .ToList();
+            return new GameSessionHintsDto { SessionId = session.Id, Hints = items };
+        }
+
         public async Task<GameSessionStateDto> SubmitAnswerAsync(int userId, long sessionId, long sessionAnswerId,
                  SubmitGameAnswerRequestDto request)
         {

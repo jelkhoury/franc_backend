@@ -65,6 +65,21 @@ namespace FrancProject.Controllers
             }
         }
 
+        /// <summary>Returns every stored hint for all questions in this session (same deck the user is playing).</summary>
+        [HttpGet("session/{sessionId:long}/hints")]
+        public async Task<IActionResult> GetSessionHints(long sessionId)
+        {
+            try
+            {
+                var dto = await _gameQuiz.GetSessionHintsAsync(GetUserId(), sessionId);
+                return Ok(dto);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
         [HttpPost("session/{sessionId:long}/answer/{answerId:long}")]
         public async Task<IActionResult> AnswerQuestion(long sessionId, long answerId,
             [FromBody] SubmitGameAnswerRequestDto request)
