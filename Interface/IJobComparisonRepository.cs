@@ -17,5 +17,6 @@ public interface IJobComparisonRepository
     Task<List<JobComparison>> GetAllJobComparisonsAsync(int userId);
     Task<bool> DeleteJobComparisonAsync(int userId, int jobComparisonId);
     Task<JobComparison?> GetLatestIncompleteJobComparisonAsync(int userId);
+    Task<List<JobComparisonDto>> GetAllJobComparisonsByUserId(int userId);
 
 }

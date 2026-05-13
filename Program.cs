@@ -88,7 +88,6 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowAnyHeader());
 });
-
 // --------------------------------------------------
 // JWT AUTHENTICATION (AZURE SAFE)
 // --------------------------------------------------

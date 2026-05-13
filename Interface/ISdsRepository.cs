@@ -21,8 +21,9 @@ namespace FrancProject.Interface
         Task<IReadOnlyList<int>> CreateQuestionsWithOptionsAsync(IEnumerable<CreateSDSQuestionWithOptionsDto> dtos);
         Task<Dictionary<string, Dictionary<string, int>>> CalculateHollandPointsBySectionNameAsync(int userId);
         Task<IReadOnlyList<object>> GetAllSdsResultsAsync();
+        Task<IReadOnlyList<object>> GetSdsResultsByUserId(int userId);
         Task<Dictionary<string, Dictionary<string, int>>>
-    CalculateHollandPointsBySectionNameForAttemptAsync(int userId, int attemptNumber);
+        CalculateHollandPointsBySectionNameForAttemptAsync(int userId, int attemptNumber);
         Task<bool> SaveAIFeedbackAsync(int userId, string aiFeedback);
         Task<bool> DeleteSDSQuestion(int questionId);
         Task<object> DeleteLastIncompleteSDSAsync(int userId);

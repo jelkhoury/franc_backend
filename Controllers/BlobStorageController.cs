@@ -262,4 +262,18 @@ public class BlobStorageController : ControllerBase
         }
     }
 
+    [HttpGet("GetUserFiles")]
+    public async Task<IActionResult> GetUserFiles(int userId)
+    {
+        try
+        {
+            var files = await _blob.GetFilesByUserId(userId);
+            return Ok(files);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = $"Error retrieving admin files: {ex.Message}" });
+        }
+    }
+
 }
