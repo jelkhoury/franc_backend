@@ -177,23 +177,25 @@ public class SdsRepository : ISdsRepository
             var normalizedCustomAnswer = string.IsNullOrWhiteSpace(r.CustomAnswer) ? null : r.CustomAnswer.Trim();
 
             if (existingResponses.TryGetValue(r.QuestionId, out var existing))
-            {
-                existing.SelectedValue = normalizedSelectedValue;
-                existing.CustomAnswer = normalizedCustomAnswer;
-                existing.SubmittedAt = now;
-            }
-            else
-            {
-                _context.SDSResponses.Add(new SDSResponse
-                {
-                    SDSResultId = attempt.Id,
-                    UserId = dto.UserId,
-                    QuestionId = r.QuestionId,
-                    SelectedValue = normalizedSelectedValue,
-                    CustomAnswer = normalizedCustomAnswer,
-                    SubmittedAt = now
-                });
-            }
+{
+    existing.SelectedValue = normalizedSelectedValue;
+    existing.CustomAnswer = normalizedCustomAnswer;
+    existing.SubmittedAt = now;
+    existing.AttemptNumber = attempt.AttemptNumber;
+}
+else
+{
+    _context.SDSResponses.Add(new SDSResponse
+    {
+        SDSResultId = attempt.Id,
+        UserId = dto.UserId,
+        QuestionId = r.QuestionId,
+        SelectedValue = normalizedSelectedValue,
+        CustomAnswer = normalizedCustomAnswer,
+        SubmittedAt = now,
+        AttemptNumber = attempt.AttemptNumber
+    });
+}
         }
 
         await _context.SaveChangesAsync();
