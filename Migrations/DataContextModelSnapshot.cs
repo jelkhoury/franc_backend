@@ -122,6 +122,9 @@ namespace FrancProject.Migrations
                     b.Property<int>("Rating")
                         .HasColumnType("int");
 
+                    b.Property<string>("Tips")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AnswerId");
@@ -156,6 +159,38 @@ namespace FrancProject.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("EvaluationReports");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.EvaluationReportSkill", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("EvaluationReportId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SkillCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("SkillName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EvaluationReportId", "SkillCode")
+                        .IsUnique();
+
+                    b.ToTable("EvaluationReportSkills");
                 });
 
             modelBuilder.Entity("FrancProject.Models.Faculty", b =>
@@ -791,6 +826,9 @@ namespace FrancProject.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsEvaluated")
+                        .HasColumnType("bit");
+
                     b.Property<int?>("NbOfTry")
                         .HasColumnType("int");
 
@@ -1159,6 +1197,17 @@ namespace FrancProject.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("FrancProject.Models.EvaluationReportSkill", b =>
+                {
+                    b.HasOne("FrancProject.Models.EvaluationReport", "EvaluationReport")
+                        .WithMany("SkillScores")
+                        .HasForeignKey("EvaluationReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EvaluationReport");
+                });
+
             modelBuilder.Entity("FrancProject.Models.FileRecord", b =>
                 {
                     b.HasOne("FrancProject.Models.User", "User")
@@ -1357,6 +1406,8 @@ namespace FrancProject.Migrations
             modelBuilder.Entity("FrancProject.Models.EvaluationReport", b =>
                 {
                     b.Navigation("Answers");
+
+                    b.Navigation("SkillScores");
                 });
 
             modelBuilder.Entity("FrancProject.Models.Faculty", b =>

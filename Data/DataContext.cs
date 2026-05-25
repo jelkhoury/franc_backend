@@ -15,6 +15,7 @@ namespace FrancProject.Data
         public DbSet<Answer> Answers { get; set; }
         public DbSet<EvaluateQuestion> EvaluateQuestions { get; set; }
         public DbSet<EvaluationReport> EvaluationReports { get; set; }
+        public DbSet<EvaluationReportSkill> EvaluationReportSkills { get; set; }
         public DbSet<MockInterview> MockInterviews { get; set; }
         public DbSet<SDSSection> SDSSections { get; set; }
         public DbSet<SDSQuestion> SDSQuestions { get; set; }
@@ -90,6 +91,16 @@ namespace FrancProject.Data
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<EvaluationReportSkill>()
+                .HasOne(s => s.EvaluationReport)
+                .WithMany(r => r.SkillScores)
+                .HasForeignKey(s => s.EvaluationReportId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<EvaluationReportSkill>()
+                .HasIndex(s => new { s.EvaluationReportId, s.SkillCode })
+                .IsUnique();
 
             modelBuilder.Entity<EvaluateQuestion>()
                 .HasOne(e => e.Answer)

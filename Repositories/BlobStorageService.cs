@@ -35,7 +35,7 @@ public class BlobStorageService
     {
         var data = await _context.Answers
             .AsNoTracking()
-            .Where(a => a.MockInterviewId != null)
+            .Where(a => a.MockInterviewId != null && !a.MockInterview.IsEvaluated)
             .Select(a => new
             {
                 AnswerId = a.Id,
@@ -45,6 +45,7 @@ public class BlobStorageService
                 MockInterviewId = a.MockInterviewId,
                 MockInterviewTitle = a.MockInterview.Title,
                 NbOfTry = a.MockInterview.NbOfTry,
+                IsEvaluated = a.MockInterview.IsEvaluated,
                 a.QuestionId,
                 QuestionTitle = a.Question.Title
             })
@@ -57,7 +58,8 @@ public class BlobStorageService
                 a.Email,
                 MockInterviewId = a.MockInterviewId!.Value,
                 a.MockInterviewTitle,
-                a.NbOfTry
+                a.NbOfTry,
+                a.IsEvaluated
             })
             .Select(g => new UserMockInterviewAnswersDto
             {
@@ -66,6 +68,7 @@ public class BlobStorageService
                 MockInterviewId = g.Key.MockInterviewId,
                 MockInterviewTitle = g.Key.MockInterviewTitle,
                 NbOfTry = g.Key.NbOfTry,
+                IsEvaluated = g.Key.IsEvaluated,
                 Answers = g.Select(a => new AnswerWithQuestionDto
                 {
                     AnswerId = a.AnswerId,

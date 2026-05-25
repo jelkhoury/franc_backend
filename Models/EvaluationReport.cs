@@ -21,5 +21,7 @@ namespace FrancProject.Models
         public User User { get; set; }
 
         public ICollection<Answer> Answers { get; set; }
+
+        public ICollection<EvaluationReportSkill> SkillScores { get; set; }
     }
 }

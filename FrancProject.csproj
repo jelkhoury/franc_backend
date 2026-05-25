@@ -10,6 +10,7 @@
     <PackageReference Include="Azure.Storage.Blobs" Version="12.25.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="DocxTemplater" Version="2.7.3" />
     <PackageReference Include="MailKit" Version="4.11.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="7.0.10" />
 	  <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.0" />
@@ -27,6 +28,19 @@
     <PackageReference Include="Sentry.AspNetCore" Version="6.3.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.13.0" />
+    <PackageReference Include="TemplateEngine.Docx" Version="1.1.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="temp_docx_test\**\*.cs" />
+    <None Remove="temp_docx_test\**\*" />
+    <Content Remove="temp_docx_test\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Templates\MockInterviewTemplateTest.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

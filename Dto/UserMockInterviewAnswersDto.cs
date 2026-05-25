@@ -11,5 +11,6 @@ namespace FrancProject.Dto
         public string MockInterviewTitle { get; set; } 
         public List<AnswerWithQuestionDto> Answers { get; set; }
         public int? NbOfTry { get; set; }
+        public bool IsEvaluated { get; set; }
     }
 }

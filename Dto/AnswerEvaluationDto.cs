@@ -9,6 +9,7 @@ namespace FrancProject.Dto
         public int QuestionId { get; set; }
         public string QuestionTitle { get; set; }
         public string? Comment { get; set; }
+        public string? Tips { get; set; }
         public int? Rating { get; set; }
     }
 }

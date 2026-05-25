@@ -14,6 +14,8 @@ namespace FrancProject.Models
 
         public string? Comment { get; set; }
 
+        public string? Tips { get; set; }
+
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

@@ -21,5 +21,7 @@ namespace FrancProject.Models
         public ICollection<Answer> Answers { get; set; }
 
         public int? NbOfTry { get; set; }
+
+        public bool IsEvaluated { get; set; }
     }
 }

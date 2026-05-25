@@ -63,6 +63,7 @@ builder.Services.AddDbContext<DataContext>(options =>
 // --------------------------------------------------
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IEvaluationRepository, EvaluationRepository>();
+builder.Services.AddScoped<MockInterviewReportDocumentService>();
 builder.Services.AddScoped<ISdsRepository, SdsRepository>();
 builder.Services.AddScoped<IJobComparisonRepository, JobComparisonRepository>();
 builder.Services.AddScoped<JobComparisonExcelService>();

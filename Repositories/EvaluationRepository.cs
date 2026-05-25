@@ -20,7 +20,7 @@ public class EvaluationRepository : IEvaluationRepository
     // ---------------------------------------
     // SINGLE QUESTION EVALUATION
     // ---------------------------------------
-    public async Task EvaluateQuestionAsync(int answerId, int evaluatorId, int rating, string? comment)
+    public async Task EvaluateQuestionAsync(int answerId, int evaluatorId, int rating, string? comment, string? tips = null)
     {
         if (rating < 1 || rating > 5)
             throw new ArgumentOutOfRangeException(nameof(rating), "Rating must be between 1 and 5.");
@@ -32,6 +32,7 @@ public class EvaluationRepository : IEvaluationRepository
         {
             existing.Rating = rating;
             existing.Comment = comment;
+            existing.Tips = tips;
             existing.CreatedAt = DateTime.UtcNow;
             _context.EvaluateQuestions.Update(existing);
         }
@@ -43,6 +44,7 @@ public class EvaluationRepository : IEvaluationRepository
                 EvaluatorId = evaluatorId,
                 Rating = rating,
                 Comment = comment,
+                Tips = tips,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -58,7 +60,8 @@ public class EvaluationRepository : IEvaluationRepository
     public async Task<EvaluationReportDto> CreateEvaluationReportWithEvaluationsAsync(
         int userId,
         List<int> answerIds,
-        string? summaryComment = null)
+        string? summaryComment = null,
+        List<ReportSkillScoreInputDto>? skillScores = null)
     {
         var report = new EvaluationReport
         {
@@ -80,6 +83,22 @@ public class EvaluationRepository : IEvaluationRepository
             a.EvaluationReportId = report.Id;
         }
 
+        var mockInterviewIds = answers
+            .Where(a => a.MockInterviewId != null)
+            .Select(a => a.MockInterviewId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (mockInterviewIds.Count > 0)
+        {
+            var mockInterviews = await _context.MockInterviews
+                .Where(m => mockInterviewIds.Contains(m.Id))
+                .ToListAsync();
+
+            foreach (var mock in mockInterviews)
+                mock.IsEvaluated = true;
+        }
+
         await _context.SaveChangesAsync();
 
         var evaluations = await _context.EvaluateQuestions
@@ -90,6 +109,29 @@ public class EvaluationRepository : IEvaluationRepository
         {
             report.OverallRating = (float?)evaluations.Average(e => e.Rating) ?? 0;
             _context.EvaluationReports.Update(report);
+            await _context.SaveChangesAsync();
+        }
+
+        if (skillScores != null && skillScores.Count > 0)
+        {
+            foreach (var skill in skillScores)
+            {
+                if (string.IsNullOrWhiteSpace(skill.SkillCode))
+                    throw new ArgumentException("SkillCode is required for each skill score.");
+                if (string.IsNullOrWhiteSpace(skill.SkillName))
+                    throw new ArgumentException("SkillName is required for each skill score.");
+                if (skill.Rating < 1 || skill.Rating > 5)
+                    throw new ArgumentOutOfRangeException(nameof(skill.Rating), "Skill rating must be between 1 and 5.");
+
+                await _context.EvaluationReportSkills.AddAsync(new EvaluationReportSkill
+                {
+                    EvaluationReportId = report.Id,
+                    SkillCode = skill.SkillCode.Trim(),
+                    SkillName = skill.SkillName.Trim(),
+                    Rating = skill.Rating
+                });
+            }
+
             await _context.SaveChangesAsync();
         }
 
@@ -112,9 +154,16 @@ public class EvaluationRepository : IEvaluationRepository
                 QuestionId = a.QuestionId,
                 QuestionTitle = a.Question?.Title,
                 Comment = eval?.Comment,
+                Tips = eval?.Tips,
                 Rating = eval?.Rating
             };
         }).ToList();
+
+        var savedSkillScores = await _context.EvaluationReportSkills
+            .AsNoTracking()
+            .Where(s => s.EvaluationReportId == report.Id)
+            .OrderBy(s => s.SkillCode)
+            .ToListAsync();
 
         return new EvaluationReportDto
         {
@@ -122,8 +171,19 @@ public class EvaluationRepository : IEvaluationRepository
             OverallRating = report.OverallRating,
             SummaryComment = report.SummaryComment,
             GeneratedAt = report.GeneratedAt,
-            Answers = answerDtos
+            Answers = answerDtos,
+            SkillScores = MapSkillScoresToDto(savedSkillScores)
         };
+    }
+
+    private static List<ReportSkillScoreDto> MapSkillScoresToDto(List<EvaluationReportSkill> skills)
+    {
+        return skills.Select(s => new ReportSkillScoreDto
+        {
+            SkillCode = s.SkillCode,
+            SkillName = s.SkillName,
+            Rating = s.Rating
+        }).ToList();
     }
 
 
@@ -159,6 +219,7 @@ public class EvaluationRepository : IEvaluationRepository
             {
                 existing.Rating = eval.Rating;
                 existing.Comment = eval.Comment;
+                existing.Tips = eval.Tips;
                 existing.CreatedAt = DateTime.UtcNow;
                 _context.EvaluateQuestions.Update(existing);
             }
@@ -170,6 +231,7 @@ public class EvaluationRepository : IEvaluationRepository
                     EvaluatorId = evaluatorId,
                     Rating = eval.Rating,
                     Comment = eval.Comment,
+                    Tips = eval.Tips,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -200,12 +262,27 @@ public class EvaluationRepository : IEvaluationRepository
             .Where(e => answerIds.Contains(e.AnswerId))
             .ToListAsync();
 
+        var reportIds = reports.Select(r => r.Id).ToList();
+
+        var allSkillScores = await _context.EvaluationReportSkills
+            .AsNoTracking()
+            .Where(s => reportIds.Contains(s.EvaluationReportId))
+            .OrderBy(s => s.SkillCode)
+            .ToListAsync();
+
+        var skillsByReport = allSkillScores
+            .GroupBy(s => s.EvaluationReportId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         var result = reports.Select(r => new EvaluationReportDto
         {
             Id = r.Id,
             OverallRating = r.OverallRating,
             SummaryComment = r.SummaryComment,
             GeneratedAt = r.GeneratedAt,
+            SkillScores = skillsByReport.TryGetValue(r.Id, out var skills)
+                ? MapSkillScoresToDto(skills)
+                : new List<ReportSkillScoreDto>(),
 
             Answers = r.Answers.Select(a =>
             {
@@ -218,6 +295,7 @@ public class EvaluationRepository : IEvaluationRepository
                     QuestionId = a.QuestionId,
                     QuestionTitle = a.Question?.Title,
                     Comment = eval?.Comment,
+                    Tips = eval?.Tips,
                     Rating = eval?.Rating
                 };
             }).ToList()
@@ -226,5 +304,72 @@ public class EvaluationRepository : IEvaluationRepository
         return result;
     }
 
+    public async Task<MockInterviewEvaluationsDto?> GetEvaluationsByMockInterviewIdAsync(int mockInterviewId)
+    {
+        var mock = await _context.MockInterviews
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.Id == mockInterviewId);
 
+        if (mock == null)
+            return null;
+
+        var answers = await _context.Answers
+            .AsNoTracking()
+            .Include(a => a.Question)
+            .Where(a => a.MockInterviewId == mockInterviewId)
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+
+        var answerIds = answers.Select(a => a.Id).ToList();
+
+        var evaluateQuestions = await _context.EvaluateQuestions
+            .AsNoTracking()
+            .Where(e => answerIds.Contains(e.AnswerId))
+            .ToListAsync();
+
+        var evaluationsByAnswer = evaluateQuestions
+            .GroupBy(e => e.AnswerId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(e => e.CreatedAt).First());
+
+        var userId = answers.FirstOrDefault()?.UserId ?? 0;
+
+        var reportId = answers.FirstOrDefault(a => a.EvaluationReportId != null)?.EvaluationReportId;
+        var skillScores = new List<ReportSkillScoreDto>();
+
+        if (reportId != null)
+        {
+            var reportSkills = await _context.EvaluationReportSkills
+                .AsNoTracking()
+                .Where(s => s.EvaluationReportId == reportId)
+                .OrderBy(s => s.SkillCode)
+                .ToListAsync();
+
+            skillScores = MapSkillScoresToDto(reportSkills);
+        }
+
+        return new MockInterviewEvaluationsDto
+        {
+            MockInterviewId = mock.Id,
+            MockInterviewTitle = mock.Title,
+            IsEvaluated = mock.IsEvaluated,
+            UserId = userId,
+            SkillScores = skillScores,
+            Evaluations = answers.Select(a =>
+            {
+                evaluationsByAnswer.TryGetValue(a.Id, out var eval);
+                return new MockInterviewAnswerEvaluationDto
+                {
+                    AnswerId = a.Id,
+                    QuestionId = a.QuestionId,
+                    QuestionTitle = a.Question?.Title ?? string.Empty,
+                    VideoUrl = a.VideoUrl,
+                    EvaluateQuestionId = eval?.Id,
+                    EvaluatorId = eval?.EvaluatorId,
+                    Rating = eval?.Rating,
+                    Comment = eval?.Comment,
+                    Tips = eval?.Tips
+                };
+            }).ToList()
+        };
+    }
 }

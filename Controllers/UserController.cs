@@ -138,24 +138,32 @@ public class UserController : ControllerBase
     }
 
     // ---------------------------------------
-    // SEND PDF TO USER
+    // SEND MOCK INTERVIEW REPORT TO USER
     // (Authorized Users Only)
     // ---------------------------------------
     [Authorize]
     [HttpPost("send-pdf")]
-    public async Task<IActionResult> SendPdfToUser([FromForm] int userId, [FromForm] IFormFile pdfFile)
+    public async Task<IActionResult> SendPdfToUser([FromForm] int userId, [FromForm] IFormFile reportFile)
     {
         try
         {
-            if (pdfFile == null || pdfFile.Length == 0)
-                return BadRequest(new { message = "PDF file is required." });
+            if (reportFile == null || reportFile.Length == 0)
+                return BadRequest(new { message = "Word report file is required." });
+
+            var extension = Path.GetExtension(reportFile.FileName);
+            if (!extension.Equals(".docx", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Only .docx Word documents are supported." });
 
             using var ms = new MemoryStream();
-            await pdfFile.CopyToAsync(ms);
+            await reportFile.CopyToAsync(ms);
 
-            await _userRepo.SendPdfToUserAsync(userId, ms.ToArray(), pdfFile.FileName);
+            await _userRepo.SendPdfToUserAsync(userId, ms.ToArray(), reportFile.FileName);
 
-            return Ok(new { message = "PDF sent successfully." });
+            return Ok(new { message = "Mock interview report sent successfully." });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
         }
         catch (Exception ex)
         {

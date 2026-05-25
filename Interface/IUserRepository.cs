@@ -13,7 +13,7 @@ namespace FrancProject.Interface
         Task SendEmailAsync(int userId);
         Task<string> ForgotPassword(string email);
         Task<string> ResetPassword(string email, string verificationCode, string newPassword);
-        Task SendPdfToUserAsync(int userId, byte[] pdfBytes, string pdfFileName);
+        Task SendPdfToUserAsync(int userId, byte[] documentBytes, string documentFileName);
         Task<List<UserResponseDto>> GetAllUsers();
 
         Task<UserResponseDto> AddUser(UserCrudDto dto);
