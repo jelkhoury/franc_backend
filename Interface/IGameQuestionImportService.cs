@@ -1,4 +1,4 @@
-using FrancProject.DTOs;
+using FrancProject.Dto;
 
 namespace FrancProject.Interfaces
 {

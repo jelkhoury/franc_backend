@@ -1,16 +1,29 @@
 using FrancProject.Data;
-using FrancProject.Interface;
+using FrancProject.Extensions;
+using FrancProject.Helpers;
 using FrancProject.Interfaces;
-using FrancProject.Repositories;
+using FrancProject.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using NLog;
+using NLog.Web;
 using Sentry;
 using System.Text;
 
+var bootstrapNLogConfig = Path.Combine(AppContext.BaseDirectory, "nlog.config");
+var logger = LogManager.Setup()
+    .LoadConfigurationFromFile(File.Exists(bootstrapNLogConfig) ? bootstrapNLogConfig : "nlog.config")
+    .GetCurrentClassLogger();
+
+try
+{
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddFrancFileLogging();
+builder.AddUploadSecurity();
 
 builder.WebHost.UseSentry(options =>
 {
@@ -61,15 +74,16 @@ builder.Services.AddDbContext<DataContext>(options =>
 // --------------------------------------------------
 // DEPENDENCY INJECTION
 // --------------------------------------------------
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IEvaluationRepository, EvaluationRepository>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IEvaluationService, EvaluationService>();
 builder.Services.AddScoped<MockInterviewReportDocumentService>();
-builder.Services.AddScoped<ISdsRepository, SdsRepository>();
-builder.Services.AddScoped<IJobComparisonRepository, JobComparisonRepository>();
+builder.Services.AddScoped<ISdsService, SdsService>();
+builder.Services.AddScoped<IJobComparisonService, JobComparisonService>();
 builder.Services.AddScoped<JobComparisonExcelService>();
 builder.Services.AddScoped<BlobStorageService>();
-builder.Services.AddScoped<IJobSearchRepository, JobSearchRepository>();
-builder.Services.AddScoped<IMajorSkillsRepository, MajorSkillsRepository>();
+builder.Services.AddScoped<IJobSearchService, JobSearchService>();
+builder.Services.AddScoped<IMajorSkillsService, MajorSkillsService>();
 builder.Services.AddScoped<IGameQuizService, GameQuizService>();
 builder.Services.AddScoped<IGameQuestionImportService, GameQuestionImportService>();
 
@@ -160,6 +174,8 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+app.EnsureLogsDirectoryExists();
+
 // --------------------------------------------------
 // LOG ACTIVE DATABASE (DEBUG)
 // --------------------------------------------------
@@ -177,6 +193,8 @@ if (!string.IsNullOrEmpty(cs))
 // --------------------------------------------------
 // MIDDLEWARE
 // --------------------------------------------------
+app.UseGlobalExceptionHandler();
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -191,3 +209,13 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+}
+catch (Exception ex)
+{
+    logger.Error(ex, "Application terminated unexpectedly");
+    throw;
+}
+finally
+{
+    LogManager.Shutdown();
+}

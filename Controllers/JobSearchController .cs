@@ -1,4 +1,4 @@
-﻿using FrancProject.DTOs;
+using FrancProject.Dto;
 using FrancProject.Interfaces;
 using FrancProject.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -11,9 +11,9 @@ namespace FrancProject.Controllers
     [Authorize]
     public class JobSearchController : ControllerBase
     {
-        private readonly IJobSearchRepository _repo;
+        private readonly IJobSearchService _repo;
 
-        public JobSearchController(IJobSearchRepository repo)
+        public JobSearchController(IJobSearchService repo)
         {
             _repo = repo;
         }

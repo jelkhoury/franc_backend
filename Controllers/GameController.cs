@@ -1,4 +1,4 @@
-using FrancProject.DTOs;
+using FrancProject.Dto;
 using FrancProject.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +13,16 @@ namespace FrancProject.Controllers
     {
         private readonly IGameQuizService _gameQuiz;
         private readonly IGameQuestionImportService _questionImport;
+        private readonly IFileUploadSecurityService _uploadSecurity;
 
-        public GameController(IGameQuizService gameQuiz, IGameQuestionImportService questionImport)
+        public GameController(
+            IGameQuizService gameQuiz,
+            IGameQuestionImportService questionImport,
+            IFileUploadSecurityService uploadSecurity)
         {
             _gameQuiz = gameQuiz;
             _questionImport = questionImport;
+            _uploadSecurity = uploadSecurity;
         }
 
         private int GetUserId() =>
@@ -26,118 +31,67 @@ namespace FrancProject.Controllers
         [HttpGet("progress")]
         public async Task<IActionResult> GetProgress()
         {
-            try
-            {
-                var dto = await _gameQuiz.GetProgressAsync(GetUserId());
-                return Ok(dto);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var dto = await _gameQuiz.GetProgressAsync(GetUserId());
+            return Ok(dto);
         }
 
         [HttpPost("start")]
         public async Task<IActionResult> StartQuiz([FromBody] StartGameSessionRequestDto request)
         {
-            try
-            {
-                var dto = await _gameQuiz.StartSessionAsync(GetUserId(), request);
-                return Ok(dto);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var dto = await _gameQuiz.StartSessionAsync(GetUserId(), request);
+            return Ok(dto);
         }
 
         [HttpGet("session/{sessionId:long}")]
         public async Task<IActionResult> GetSessionState(long sessionId)
         {
-            try
-            {
-                var dto = await _gameQuiz.GetSessionAsync(GetUserId(), sessionId);
-                return Ok(dto);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var dto = await _gameQuiz.GetSessionAsync(GetUserId(), sessionId);
+            return Ok(dto);
         }
 
-        /// <summary>Returns every stored hint for all questions in this session (same deck the user is playing).</summary>
         [HttpGet("session/{sessionId:long}/hints")]
         public async Task<IActionResult> GetSessionHints(long sessionId)
         {
-            try
-            {
-                var dto = await _gameQuiz.GetSessionHintsAsync(GetUserId(), sessionId);
-                return Ok(dto);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var dto = await _gameQuiz.GetSessionHintsAsync(GetUserId(), sessionId);
+            return Ok(dto);
         }
 
         [HttpPost("session/{sessionId:long}/answer/{answerId:long}")]
         public async Task<IActionResult> AnswerQuestion(long sessionId, long answerId,
             [FromBody] SubmitGameAnswerRequestDto request)
         {
-            try
-            {
-                var dto = await _gameQuiz.SubmitAnswerAsync(GetUserId(), sessionId, answerId, request);
-                return Ok(dto);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var dto = await _gameQuiz.SubmitAnswerAsync(GetUserId(), sessionId, answerId, request);
+            return Ok(dto);
         }
 
         [HttpPost("session/{sessionId:long}/ability/{answerId:long}")]
         public async Task<IActionResult> UseAbility(long sessionId, long answerId,
             [FromBody] UseGameAbilityRequestDto request)
         {
-            try
-            {
-                var dto = await _gameQuiz.UseAbilityAsync(GetUserId(), sessionId, answerId, request);
-                return Ok(dto);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var dto = await _gameQuiz.UseAbilityAsync(GetUserId(), sessionId, answerId, request);
+            return Ok(dto);
         }
 
         [HttpPost("session/{sessionId:long}/finish")]
         public async Task<IActionResult> FinishQuiz(long sessionId)
         {
-            try
-            {
-                var dto = await _gameQuiz.FinishSessionAsync(GetUserId(), sessionId);
-                return Ok(dto);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
+            var dto = await _gameQuiz.FinishSessionAsync(GetUserId(), sessionId);
+            return Ok(dto);
         }
 
         [HttpPost("questions/import")]
         [Authorize(Roles = "Admin")]
-        [RequestSizeLimit(52_428_800)]
-        [RequestFormLimits(MultipartBodyLengthLimit = 52_428_800)]
-        public async Task<IActionResult> ImportQuestionsFromExcel(IFormFile? file, CancellationToken cancellationToken)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ImportQuestionsFromExcel(
+            [FromForm] ImportQuestionsFormDto model,
+            CancellationToken cancellationToken)
         {
-            if (file == null || file.Length == 0)
+            if (model.File == null || model.File.Length == 0)
                 return BadRequest(new { error = "No file uploaded." });
 
-            var ext = Path.GetExtension(file.FileName);
-            if (!string.Equals(ext, ".xlsx", StringComparison.OrdinalIgnoreCase))
-                return BadRequest(new { error = "Only .xlsx (Excel workbook) files are supported." });
+            await _uploadSecurity.ValidateAsync(model.File, FileUploadCategory.Spreadsheet, cancellationToken);
 
-            await using var stream = file.OpenReadStream();
+            await using var stream = model.File.OpenReadStream();
             var result = await _questionImport.ImportFromExcelAsync(stream, cancellationToken);
             return Ok(result);
         }

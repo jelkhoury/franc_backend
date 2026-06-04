@@ -1,4 +1,4 @@
-using FrancProject.DTOs;
+using FrancProject.Dto;
 using FrancProject.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,9 +10,9 @@ namespace FrancProject.Controllers
     [Authorize]
     public class MajorSkillsController : ControllerBase
     {
-        private readonly IMajorSkillsRepository _repo;
+        private readonly IMajorSkillsService _repo;
 
-        public MajorSkillsController(IMajorSkillsRepository repo)
+        public MajorSkillsController(IMajorSkillsService repo)
         {
             _repo = repo;
         }

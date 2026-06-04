@@ -1,331 +1,180 @@
-﻿using FrancProject.Data;
+using FrancProject.Data;
 using FrancProject.Dto;
-using FrancProject.Interface;
+using FrancProject.Interfaces;
 using FrancProject.Models;
-using MailKit.Net.Smtp;
-using MailKit.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MimeKit;
-using MimeKit.Text;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using static UserRepository;
+
+namespace FrancProject.Controllers;
 
 [ApiController]
 [Route("api/users")]
 public class UserController : ControllerBase
 {
-
     private readonly DataContext _context;
-    private readonly IUserRepository _userRepo;
-    private readonly IConfiguration _config;
+    private readonly IUserService _userRepo;
+    private readonly IEmailService _emailService;
+    private readonly IFileUploadSecurityService _uploadSecurity;
 
-    public UserController(IUserRepository userRepository, IConfiguration config, DataContext context)
+    public UserController(
+        IUserService userService,
+        DataContext context,
+        IEmailService emailService,
+        IFileUploadSecurityService uploadSecurity)
     {
-        _userRepo = userRepository;
-        _config = config;
+        _userRepo = userService;
         _context = context;
+        _emailService = emailService;
+        _uploadSecurity = uploadSecurity;
     }
 
-    // ---------------------------------------
-    // SIGN UP
-    // ---------------------------------------
     [HttpPost("signup")]
     public async Task<IActionResult> SignUp([FromBody] UserDto dto)
     {
-        try
-        {
-            string token = await _userRepo.SignUp(dto);
-            return Ok(new { message = "Signup successful!", token });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        string token = await _userRepo.SignUp(dto);
+        return Ok(new { message = "Signup successful!", token });
     }
 
-    // ---------------------------------------
-    // VERIFY CODE
-    // ---------------------------------------
     [HttpPost("verify-code")]
     public async Task<IActionResult> VerifyCode([FromQuery] string email, [FromQuery] string code)
     {
-        try
-        {
-            bool ok = await _userRepo.VerifyVerificationCode(email, code);
+        bool ok = await _userRepo.VerifyVerificationCode(email, code);
 
-            if (!ok)
-                return BadRequest(new { message = "Invalid verification code." });
+        if (!ok)
+            return BadRequest(new { message = "Invalid verification code." });
 
-            return Ok(new { message = "Verification successful!" });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        return Ok(new { message = "Verification successful!" });
     }
 
-    // ---------------------------------------
-    // SIGN IN
-    // ---------------------------------------
     [HttpPost("sign-in")]
     public async Task<IActionResult> SignIn([FromBody] SignInRequest request)
     {
-        try
-        {
-            string token = await _userRepo.SignIn(request.Email, request.Password);
-            return Ok(new { message = "Sign-in successful!", token });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        string token = await _userRepo.SignIn(request.Email, request.Password);
+        return Ok(new { message = "Sign-in successful!", token });
     }
 
-    // ---------------------------------------
-    // FORGOT PASSWORD
-    // ---------------------------------------
     [HttpPost("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromQuery] string email)
     {
-        try
-        {
-            string result = await _userRepo.ForgotPassword(email);
-            return Ok(new { message = result });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        string result = await _userRepo.ForgotPassword(email);
+        return Ok(new { message = result });
     }
 
-    // ---------------------------------------
-    // RESET PASSWORD
-    // ---------------------------------------
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
     {
-        try
-        {
-            string result = await _userRepo.ResetPassword(dto.Email, dto.VerificationCode, dto.NewPassword);
-            return Ok(new { message = result });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        string result = await _userRepo.ResetPassword(dto.Email, dto.VerificationCode, dto.NewPassword);
+        return Ok(new { message = result });
     }
 
-    // ---------------------------------------
-    // SEND MOCK INTERVIEW NOTIFICATION
-    // (Authorized Users Only)
-    // ---------------------------------------
     [Authorize]
     [HttpPost("send-mock-submission-notification")]
     public async Task<IActionResult> SendMockInterviewNotification([FromQuery] int userId)
     {
-        try
-        {
-            await _userRepo.SendEmailAsync(userId);
-            return Ok(new { message = "Notification emails sent to all admins." });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
+        await _userRepo.SendEmailAsync(userId);
+        return Ok(new { message = "Notification emails sent to all admins." });
     }
 
-    // ---------------------------------------
-    // SEND MOCK INTERVIEW REPORT TO USER
-    // (Authorized Users Only)
-    // ---------------------------------------
     [Authorize]
     [HttpPost("send-pdf")]
-    public async Task<IActionResult> SendPdfToUser([FromForm] int userId, [FromForm] IFormFile reportFile)
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> SendPdfToUser([FromForm] SendWordReportFormDto model)
     {
-        try
-        {
-            if (reportFile == null || reportFile.Length == 0)
-                return BadRequest(new { message = "Word report file is required." });
+        if (model.ReportFile == null || model.ReportFile.Length == 0)
+            return BadRequest(new { message = "Word report file is required." });
 
-            var extension = Path.GetExtension(reportFile.FileName);
-            if (!extension.Equals(".docx", StringComparison.OrdinalIgnoreCase))
-                return BadRequest(new { message = "Only .docx Word documents are supported." });
+        await _uploadSecurity.ValidateAsync(model.ReportFile, FileUploadCategory.WordReport);
 
-            using var ms = new MemoryStream();
-            await reportFile.CopyToAsync(ms);
+        using var ms = new MemoryStream();
+        await model.ReportFile.CopyToAsync(ms);
 
-            await _userRepo.SendPdfToUserAsync(userId, ms.ToArray(), reportFile.FileName);
+        await _userRepo.SendPdfToUserAsync(model.UserId, ms.ToArray(), model.ReportFile.FileName);
 
-            return Ok(new { message = "Mock interview report sent successfully." });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
+        return Ok(new { message = "Mock interview report sent successfully." });
     }
 
     [Authorize]
     [HttpGet("get-all-users")]
     public async Task<IActionResult> GetAllUsers()
     {
-        try
-        {
-            return Ok(await _userRepo.GetAllUsers());
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        return Ok(await _userRepo.GetAllUsers());
     }
 
     [Authorize]
     [HttpPost("add-user")]
     public async Task<IActionResult> AddUser([FromBody] UserCrudDto dto)
     {
-        try
-        {
-            var result = await _userRepo.AddUser(dto);
-            return Ok(new { message = "User added successfully.", user = result });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        var result = await _userRepo.AddUser(dto);
+        return Ok(new { message = "User added successfully.", user = result });
     }
+
     [Authorize]
     [HttpPut("update-user")]
     public async Task<IActionResult> UpdateUser([FromQuery] int id, [FromBody] UserCrudDto dto)
     {
-        try
+        return Ok(new
         {
-            return Ok(new
-            {
-                message = "User updated successfully.",
-                user = await _userRepo.UpdateUser(id, dto)
-            });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+            message = "User updated successfully.",
+            user = await _userRepo.UpdateUser(id, dto)
+        });
     }
-
 
     [Authorize]
     [HttpDelete("delete-user")]
     public async Task<IActionResult> DeleteUser([FromQuery] int id)
     {
-        try
-        {
-            await _userRepo.DeleteUser(id);
-            return Ok(new { message = "User deleted successfully." });
-        }
-        catch (Exception ex)
-        {
-            return BadRequest(new { error = ex.Message });
-        }
+        await _userRepo.DeleteUser(id);
+        return Ok(new { message = "User deleted successfully." });
     }
-
-   
 
     [HttpGet("CanUserPerformAction")]
     public async Task<IActionResult> CanUserPerformAction([FromQuery] int userId, UserActionType action)
     {
-        try
-        {
-            var canDo = await _userRepo.CanUserPerformActionAsync(userId,action);
-            return Ok(new { userId, canDoMock = canDo });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
+        var canDo = await _userRepo.CanUserPerformActionAsync(userId, action);
+        return Ok(new { userId, canDoMock = canDo });
     }
 
     [HttpPost("send-verification-code")]
     public async Task<IActionResult> SendVerificationCode([FromQuery] string email)
     {
-        try
-        {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            if (user == null)
-                return BadRequest(new { message = "User not found." });
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null)
+            return BadRequest(new { message = "User not found." });
 
-          
-            string code = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
+        string code = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
 
-           
-            user.VerificationCode = code;
-            user.IsVerified = false; 
-            await _context.SaveChangesAsync();
+        user.VerificationCode = code;
+        user.IsVerified = false;
+        await _context.SaveChangesAsync();
 
-            var emailMessage = new MimeMessage();
-            emailMessage.From.Add(MailboxAddress.Parse(_config["MAIL_FROM_ADDRESS"]));
-            emailMessage.To.Add(MailboxAddress.Parse(email));
-            emailMessage.Subject = "Verification Code";
-            emailMessage.Body = new TextPart(TextFormat.Html)
-            {
-                Text = $"Your verification code is: <b>{code}</b>"
-            };
+        await _emailService.SendVerificationCodeAsync(email, code);
 
-            using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(
-                _config["MAIL_HOST"],
-                int.Parse(_config["MAIL_PORT"]),
-                SecureSocketOptions.StartTls
-            );
-            await smtp.AuthenticateAsync(
-                _config["MAIL_USERNAME"],
-                _config["MAIL_PASSWORD"]
-            );
-            await smtp.SendAsync(emailMessage);
-            await smtp.DisconnectAsync(true);
-
-            return Ok(new
-            {
-                message = "Verification code sent successfully."
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
+        return Ok(new { message = "Verification code sent successfully." });
     }
 
     [HttpPost("generate-token-by-email")]
     public async Task<IActionResult> GenerateTokenByEmail([FromQuery] string email)
     {
-        try
-        {
-            var user = await _context.Users
-                .Where(u => u.Email == email)
-                .Select(u => new User
-                {
-                    Id = u.Id,
-                    FirstName = u.FirstName,
-                    LastName = u.LastName,
-                    Role = u.Role
-                })
-                .FirstOrDefaultAsync();
+        var user = await _context.Users
+            .Where(u => u.Email == email)
+            .Select(u => new User
+            {
+                Id = u.Id,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Role = u.Role
+            })
+            .FirstOrDefaultAsync();
 
-            if (user == null)
-                return BadRequest(new { message = "User not found." });
+        if (user == null)
+            return BadRequest(new { message = "User not found." });
 
-            var token = await _userRepo.CreateToken(user);
+        var token = await _userRepo.CreateToken(user);
 
-            return Ok(new { token });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
+        return Ok(new { token });
     }
 
     [Authorize]
@@ -333,7 +182,6 @@ public class UserController : ControllerBase
     public async Task<IActionResult> GetMyInfo()
     {
         int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
         var userInfo = await _userRepo.GetUserInfoAsync(userId);
         return Ok(userInfo);
     }
@@ -342,35 +190,7 @@ public class UserController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAllChats()
     {
-        try
-        {
-            var result = await _userRepo.GetAllChatsAsync();
-            return Ok(result);
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, new
-            {
-                error = "An error occurred while retrieving chats.",
-                details = ex.Message
-            });
-        }
+        var result = await _userRepo.GetAllChatsAsync();
+        return Ok(result);
     }
-
-
-
-}
-
-
-
-public class SignInRequest
-{
-    public string Email { get; set; }
-    public string Password { get; set; }
-}
-
-public class PdfEmailRequestDto
-{
-    public byte[] PdfBytes { get; set; }
-    public string PdfFileName { get; set; }
 }
