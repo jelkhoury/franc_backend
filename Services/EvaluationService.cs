@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FrancProject.Data;
 using FrancProject.Dto;
+using FrancProject.Helpers;
 using FrancProject.Interfaces;
 using FrancProject.Models;
 using Microsoft.EntityFrameworkCore;
@@ -13,10 +14,12 @@ namespace FrancProject.Services;
 public class EvaluationService : IEvaluationService
 {
     private readonly DataContext _context;
+    private readonly IActivityEventWriter _activityEvents;
 
-    public EvaluationService(DataContext context)
+    public EvaluationService(DataContext context, IActivityEventWriter activityEvents)
     {
         _context = context;
+        _activityEvents = activityEvents;
     }
 
     // ---------------------------------------
@@ -112,6 +115,24 @@ public class EvaluationService : IEvaluationService
             report.OverallRating = (float?)evaluations.Average(e => e.Rating) ?? 0;
             _context.EvaluationReports.Update(report);
             await _context.SaveChangesAsync();
+
+            await _activityEvents.TryLogAsync(
+                userId,
+                AnalyticsConstants.MockInterview,
+                ActivityEventTypes.MockInterviewEvaluated,
+                "evaluated",
+                report.Id.ToString(),
+                report.GeneratedAt,
+                report.OverallRating.HasValue ? $"{report.OverallRating:0.#}/5" : null);
+
+            await _activityEvents.TryLogAsync(
+                userId,
+                AnalyticsConstants.MockInterview,
+                ActivityEventTypes.MockInterviewReportGenerated,
+                "evaluated",
+                $"report-{report.Id}",
+                report.GeneratedAt,
+                report.OverallRating.HasValue ? $"{report.OverallRating:0.#}/5" : null);
         }
 
         if (skillScores != null && skillScores.Count > 0)

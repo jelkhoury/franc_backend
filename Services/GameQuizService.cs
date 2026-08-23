@@ -11,10 +11,12 @@ namespace FrancProject.Services
     public class GameQuizService : IGameQuizService
     {
         private readonly DataContext _context;
+        private readonly IActivityEventWriter _activityEvents;
 
-        public GameQuizService(DataContext context)
+        public GameQuizService(DataContext context, IActivityEventWriter activityEvents)
         {
             _context = context;
+            _activityEvents = activityEvents;
         }
 
         public static GameAbilityKind ParseAbilityKind(string raw)
@@ -406,6 +408,19 @@ namespace FrancProject.Services
 
             if (session.Passed)
                 await ApplyProgressOnPassAsync(session.UserId, level.LevelNumber);
+
+            var activityType = session.Passed
+                ? ActivityEventTypes.GamificationLevelCompleted
+                : ActivityEventTypes.GamificationLevelFailed;
+
+            await _activityEvents.TryLogAsync(
+                session.UserId,
+                AnalyticsConstants.Gamification,
+                activityType,
+                session.Status.ToLowerInvariant(),
+                session.Id.ToString(),
+                now.UtcDateTime,
+                session.Passed ? level.BadgeName : $"{session.Score} pts");
         }
 
         private async Task ApplyProgressOnPassAsync(int userId, int levelNumberPassed)

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using FrancProject.Models;
+using FrancProject.Models.Analytics;
 
 namespace FrancProject.Data
 {
@@ -36,6 +37,8 @@ namespace FrancProject.Data
         public DbSet<GameSession> GameSessions { get; set; }
         public DbSet<GameSessionAnswer> GameSessionAnswers { get; set; }
         public DbSet<UserGameProgress> UserGameProgresses { get; set; }
+        public DbSet<ActivityEvent> ActivityEvents { get; set; }
+        public DbSet<JobMatchingSearch> JobMatchingSearches { get; set; }
 
 
 
@@ -333,6 +336,42 @@ namespace FrancProject.Data
                     .HasForeignKey(e => e.UserId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(e => e.UserId).IsUnique();
+            });
+
+            modelBuilder.Entity<ActivityEvent>(entity =>
+            {
+                entity.ToTable("ActivityEvents");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ServiceKey).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.ActivityType).IsRequired().HasMaxLength(64);
+                entity.Property(e => e.Status).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.ResultSummary).HasMaxLength(256);
+                entity.Property(e => e.EntityId).IsRequired().HasMaxLength(64);
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.OccurredAt);
+                entity.HasIndex(e => new { e.UserId, e.OccurredAt });
+                entity.HasIndex(e => new { e.ServiceKey, e.OccurredAt });
+                entity.HasIndex(e => new { e.ServiceKey, e.EntityId, e.ActivityType }).IsUnique();
+            });
+
+            modelBuilder.Entity<JobMatchingSearch>(entity =>
+            {
+                entity.ToTable("JobMatchingSearches");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.SearchType).IsRequired().HasMaxLength(32);
+                entity.Property(e => e.Faculty).HasMaxLength(200);
+                entity.Property(e => e.Major).HasMaxLength(200);
+                entity.Property(e => e.Country).HasMaxLength(100);
+                entity.Property(e => e.QueryText).HasMaxLength(500);
+                entity.HasOne(e => e.User)
+                    .WithMany()
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.SearchedAt);
+                entity.HasIndex(e => e.UserId);
             });
 
         }

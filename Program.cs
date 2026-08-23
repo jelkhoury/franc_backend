@@ -2,7 +2,10 @@ using FrancProject.Data;
 using FrancProject.Extensions;
 using FrancProject.Helpers;
 using FrancProject.Interfaces;
+using FrancProject.Options;
 using FrancProject.Services;
+using FrancProject.Services.AdminAnalytics;
+using FrancProject.Services.Analytics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -86,6 +89,11 @@ builder.Services.AddScoped<IJobSearchService, JobSearchService>();
 builder.Services.AddScoped<IMajorSkillsService, MajorSkillsService>();
 builder.Services.AddScoped<IGameQuizService, GameQuizService>();
 builder.Services.AddScoped<IGameQuestionImportService, GameQuestionImportService>();
+builder.Services.AddScoped<IAdminAnalyticsService, AdminAnalyticsService>();
+builder.Services.Configure<AnalyticsOptions>(builder.Configuration.GetSection(AnalyticsOptions.SectionName));
+builder.Services.AddScoped<IActivityEventWriter, ActivityEventWriter>();
+builder.Services.AddScoped<IJobMatchingSearchLogger, JobMatchingSearchLogger>();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddControllers();
 

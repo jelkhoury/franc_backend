@@ -1032,6 +1032,9 @@ namespace FrancProject.Migrations
                     b.Property<int?>("CoverAttempts")
                         .HasColumnType("int");
 
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -1041,6 +1044,10 @@ namespace FrancProject.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<string>("Faculty")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<bool>("IsVerified")
                         .HasColumnType("bit");
 
@@ -1048,6 +1055,10 @@ namespace FrancProject.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Major")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<int?>("MockAttempts")
                         .HasColumnType("int");
@@ -1075,6 +1086,103 @@ namespace FrancProject.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.Analytics.ActivityEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActivityType")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EntityId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ResultSummary")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ServiceKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.HasIndex("ServiceKey", "EntityId", "ActivityType")
+                        .IsUnique();
+
+                    b.HasIndex("ServiceKey", "OccurredAt");
+
+                    b.HasIndex("UserId", "OccurredAt");
+
+                    b.ToTable("ActivityEvents");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.Analytics.JobMatchingSearch", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Country")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Faculty")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Major")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("QueryText")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("ResultsCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("SearchedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("SearchType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SearchedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("JobMatchingSearches");
                 });
 
             modelBuilder.Entity("FrancProject.Models.UserGameProgress", b =>
@@ -1152,6 +1260,28 @@ namespace FrancProject.Migrations
                     b.Navigation("MockInterview");
 
                     b.Navigation("Question");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.Analytics.ActivityEvent", b =>
+                {
+                    b.HasOne("FrancProject.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("FrancProject.Models.Analytics.JobMatchingSearch", b =>
+                {
+                    b.HasOne("FrancProject.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });

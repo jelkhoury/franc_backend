@@ -406,4 +406,9 @@ appsettings.*.json
 # build outputs
 **/bin/
 **/obj/
+.build-check/
+.build-check-p2/
+
+# local / ops scripts (not for repo)
+Scripts/backfill-activity-events.sql
 

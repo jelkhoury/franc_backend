@@ -2,6 +2,7 @@
 using Azure.Storage.Blobs.Models;
 using FrancProject.Data;
 using FrancProject.Dto;
+using FrancProject.Helpers;
 using FrancProject.Interfaces;
 using FrancProject.Models;
 using Microsoft.AspNetCore.Http;
@@ -26,6 +27,7 @@ public class BlobStorageService
     private readonly IUserService _userRepo;
     private readonly IFileUploadSecurityService _uploadSecurity;
     private readonly UploadSecurityOptions _uploadOptions;
+    private readonly IActivityEventWriter _activityEvents;
 
     public BlobStorageService(
         IConfiguration config,
@@ -33,7 +35,8 @@ public class BlobStorageService
         DataContext context,
         IUserService userService,
         IFileUploadSecurityService uploadSecurity,
-        IOptions<UploadSecurityOptions> uploadOptions)
+        IOptions<UploadSecurityOptions> uploadOptions,
+        IActivityEventWriter activityEvents)
     {
         _blobClient = new BlobServiceClient(config.GetConnectionString("AzureBlobStorage"));
 
@@ -55,6 +58,7 @@ public class BlobStorageService
         _userRepo = userService;
         _uploadSecurity = uploadSecurity;
         _uploadOptions = uploadOptions.Value;
+        _activityEvents = activityEvents;
     }
 
     // ---------------------------------------
@@ -180,6 +184,14 @@ public class BlobStorageService
         _context.Users.Update(user);
 
         await _context.SaveChangesAsync();
+
+        await _activityEvents.TryLogAsync(
+            dto.UserId,
+            AnalyticsConstants.MockInterview,
+            ActivityEventTypes.MockInterviewSubmitted,
+            "submitted",
+            mock.Id.ToString(),
+            DateTime.UtcNow);
 
         await _userRepo.SendEmailAsync(dto.UserId);
 
@@ -542,6 +554,29 @@ public class BlobStorageService
         _context.Files.Add(record);
         _context.Users.Update(user); // 🔑 ensure EF tracks the decrement
         await _context.SaveChangesAsync();
+
+        if (title == "Resume")
+        {
+            await _activityEvents.TryLogAsync(
+                userId,
+                AnalyticsConstants.Resume,
+                ActivityEventTypes.ResumeUploaded,
+                string.IsNullOrWhiteSpace(aiEvaluation) ? "uploaded" : "evaluated",
+                record.Id.ToString(),
+                record.CreatedAt,
+                string.IsNullOrWhiteSpace(aiEvaluation) ? "Uploaded" : "AI feedback");
+        }
+        else if (title == "CoverLetter")
+        {
+            await _activityEvents.TryLogAsync(
+                userId,
+                AnalyticsConstants.CoverLetter,
+                ActivityEventTypes.CoverLetterUploaded,
+                string.IsNullOrWhiteSpace(aiEvaluation) ? "uploaded" : "evaluated",
+                record.Id.ToString(),
+                record.CreatedAt,
+                string.IsNullOrWhiteSpace(aiEvaluation) ? "Uploaded" : "AI feedback");
+        }
 
         return record;
     }

@@ -2,6 +2,7 @@ using FrancProject.Data;
 using FrancProject.Dto;
 using FrancProject.Models;
 using Microsoft.EntityFrameworkCore;
+using FrancProject.Helpers;
 using FrancProject.Interfaces;
 
 namespace FrancProject.Services;
@@ -9,10 +10,12 @@ namespace FrancProject.Services;
 public class JobComparisonService : IJobComparisonService
 {
     private readonly DataContext _context;
+    private readonly IActivityEventWriter _activityEvents;
 
-    public JobComparisonService(DataContext context)
+    public JobComparisonService(DataContext context, IActivityEventWriter activityEvents)
     {
         _context = context;
+        _activityEvents = activityEvents;
     }
 
     // ===== CRITERIA =====
@@ -102,6 +105,14 @@ public class JobComparisonService : IJobComparisonService
 
             _context.JobComparisons.Add(comparison);
             await _context.SaveChangesAsync();
+
+            await _activityEvents.TryLogAsync(
+                userId,
+                AnalyticsConstants.JobComparison,
+                ActivityEventTypes.JobComparisonStarted,
+                "draft",
+                comparison.Id.ToString(),
+                comparison.CreatedAt);
         }
         else
         {
@@ -165,6 +176,17 @@ public class JobComparisonService : IJobComparisonService
 
         // ? SINGLE SaveChanges = shorter connection lifetime
         await _context.SaveChangesAsync();
+
+        if (dto.IsCompleted)
+        {
+            await _activityEvents.TryLogAsync(
+                userId,
+                AnalyticsConstants.JobComparison,
+                ActivityEventTypes.JobComparisonCompleted,
+                "completed",
+                comparison.Id.ToString(),
+                comparison.CompletedAt ?? DateTime.UtcNow);
+        }
 
         return comparison.Id;
     }

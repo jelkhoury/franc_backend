@@ -52,7 +52,8 @@ public class UserService : IUserService
             MockAttempts = 2,
             CoverAttempts = 2,
             ResumeAttempts = 2,
-            SDSAttempts = 2
+            SDSAttempts = 2,
+            CreatedAt = DateTime.UtcNow
         };
 
         _context.Users.Add(user);
@@ -257,7 +258,8 @@ public class UserService : IUserService
             MockAttempts = dto.MockAttempts ?? 0,
             CoverAttempts = dto.CoverAttempts ?? 0,
             ResumeAttempts = dto.ResumeAttempts ?? 0,
-            SDSAttempts = dto.SDSAttempts ?? 0
+            SDSAttempts = dto.SDSAttempts ?? 0,
+            CreatedAt = DateTime.UtcNow
         };
 
         _context.Users.Add(user);

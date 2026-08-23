@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using FrancProject.Data;
 using FrancProject.Dto;
 using FrancProject.Models;
+using FrancProject.Helpers;
 using FrancProject.Interfaces;
 
 namespace FrancProject.Services;
@@ -15,11 +16,16 @@ public class SdsService : ISdsService
 {
     private readonly DataContext _context;
     private readonly IConfiguration _configuration;
+    private readonly IActivityEventWriter _activityEvents;
 
-    public SdsService(DataContext context, IConfiguration configuration)
+    public SdsService(
+        DataContext context,
+        IConfiguration configuration,
+        IActivityEventWriter activityEvents)
     {
         _context = context;
         _configuration = configuration;
+        _activityEvents = activityEvents;
     }
 
     public async Task<int> CreateSectionAsync(CreateSDSSectionDto dto)
@@ -167,6 +173,14 @@ public class SdsService : ISdsService
 
             _context.SDSResults.Add(attempt);
             await _context.SaveChangesAsync();
+
+            await _activityEvents.TryLogAsync(
+                dto.UserId,
+                AnalyticsConstants.Sds,
+                ActivityEventTypes.SdsStarted,
+                "draft",
+                attempt.Id.ToString(),
+                attempt.CreatedAt);
         }
 
         // ?? UPSERT responses
@@ -239,6 +253,15 @@ else
         user.SDSAttempts -= 1;
 
         await _context.SaveChangesAsync();
+
+        await _activityEvents.TryLogAsync(
+            dto.UserId,
+            AnalyticsConstants.Sds,
+            ActivityEventTypes.SdsCompleted,
+            "completed",
+            attempt.Id.ToString(),
+            attempt.CompletedAt ?? DateTime.UtcNow,
+            hollandCode);
 
         return new
         {

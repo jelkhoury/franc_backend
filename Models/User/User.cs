@@ -34,6 +34,15 @@ namespace FrancProject.Models
         public int? CoverAttempts { get; set; }
         public int? ResumeAttempts { get; set; }
         public int? SDSAttempts { get; set; }
+
+        public DateTime? CreatedAt { get; set; }
+
+        [MaxLength(200)]
+        public string? Faculty { get; set; }
+
+        [MaxLength(200)]
+        public string? Major { get; set; }
+
         public ICollection<FileRecord> Files { get; set; }
         public ICollection<ChatMessage> ChatMessages { get; set; } = new List<ChatMessage>();
         public ICollection<JobComparison> JobComparisons { get; set; } = new List<JobComparison>();
