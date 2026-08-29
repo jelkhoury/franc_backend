@@ -664,5 +664,59 @@ else
         return results;
     }
 
+    public async Task<SdsExcelExportResult> ExportExcelAsync(
+        SdsExportQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
+        if (!SdsExcelExportHelper.TryParseCompletion(query.Completion, out var completion))
+            throw new ArgumentException("Completion must be 'all', 'complete', or 'incomplete'.");
 
+        if (query.FromDate.HasValue && query.ToDate.HasValue && query.FromDate > query.ToDate)
+            throw new ArgumentException("FromDate must be on or before ToDate.");
+
+        var from = query.FromDate;
+        var toExclusive = SdsExcelExportHelper.ToExclusiveEnd(query.ToDate);
+
+        var q = _context.SDSResults
+            .AsNoTracking()
+            .Include(r => r.User)
+            .AsQueryable();
+
+        if (completion == SdsExportCompletionFilter.Complete)
+            q = q.Where(r => r.IsCompleted);
+        else if (completion == SdsExportCompletionFilter.Incomplete)
+            q = q.Where(r => !r.IsCompleted);
+
+        if (from.HasValue)
+        {
+            var fromVal = from.Value;
+            q = q.Where(r =>
+                (r.IsCompleted && r.CompletedAt != null ? r.CompletedAt.Value : r.CreatedAt) >= fromVal);
+        }
+
+        if (toExclusive.HasValue)
+        {
+            var toVal = toExclusive.Value;
+            q = q.Where(r =>
+                (r.IsCompleted && r.CompletedAt != null ? r.CompletedAt.Value : r.CreatedAt) < toVal);
+        }
+
+        var rows = await q
+            .OrderBy(r => r.User.Email)
+            .ThenBy(r => r.AttemptNumber)
+            .Select(r => new SdsExportRow
+            {
+                FirstName = r.User.FirstName,
+                LastName = r.User.LastName,
+                Email = r.User.Email,
+                HollandCode = r.HollandCode,
+                IsCompleted = r.IsCompleted,
+                AttemptNumber = r.AttemptNumber,
+                StartedAt = r.CreatedAt,
+                CompletedAt = r.CompletedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        return SdsExcelExportHelper.BuildWorkbook(rows, from, query.ToDate, completion);
+    }
 }

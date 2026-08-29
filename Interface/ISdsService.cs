@@ -19,4 +19,5 @@ public interface ISdsService
     Task<bool> SaveAIFeedbackAsync(int userId, string aiFeedback);
     Task<bool> DeleteSDSQuestion(int questionId);
     Task<object> DeleteLastIncompleteSDSAsync(int userId);
+    Task<SdsExcelExportResult> ExportExcelAsync(SdsExportQueryDto query, CancellationToken cancellationToken = default);
 }

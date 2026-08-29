@@ -85,6 +85,26 @@ public class SdsController : ControllerBase
         return Ok(responses);
     }
 
+    [Authorize(Roles = "Admin")]
+    [HttpGet("export-excel")]
+    public async Task<IActionResult> ExportExcel(
+        [FromQuery] SdsExportQueryDto query,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _repo.ExportExcelAsync(query, cancellationToken);
+            return File(
+                result.Bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                result.FileName);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpGet("SDSResults")]
     public async Task<IActionResult> GetAllResults()
     {
