@@ -52,4 +52,4 @@ jobs:
           app-name: 'franc-api'
           slot-name: 'Production'
           package: .
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_4312B4C3BCBB4F249AA855B11AEF455B }}
+          publish-profile: ${{ secrets.NEW_AZUREAPPSERVICE_PUBLISHPROFILE_4312B4C3BCBB4F249AA855B11AEF455B }}
