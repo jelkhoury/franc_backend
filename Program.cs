@@ -7,8 +7,8 @@ using FrancProject.Services;
 using FrancProject.Services.AdminAnalytics;
 using FrancProject.Services.Analytics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using NLog;
@@ -64,14 +64,14 @@ builder.WebHost.UseSentry(options =>
 // DATABASE
 // --------------------------------------------------
 builder.Services.AddDbContext<DataContext>(options =>
-    options.UseSqlServer(
+    options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        sqlOptions =>
+        npgsqlOptions =>
         {
-            sqlOptions.EnableRetryOnFailure(
+            npgsqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,
                 maxRetryDelay: TimeSpan.FromSeconds(10),
-                errorNumbersToAdd: null);
+                errorCodesToAdd: null);
         }));
 
 // --------------------------------------------------
@@ -193,11 +193,11 @@ app.EnsureLogsDirectoryExists();
 var cs = builder.Configuration.GetConnectionString("DefaultConnection");
 if (!string.IsNullOrEmpty(cs))
 {
-    var b = new SqlConnectionStringBuilder(cs);
+    var b = new NpgsqlConnectionStringBuilder(cs);
     app.Logger.LogInformation(
-        "DB Used at runtime: {Server}/{Database}",
-        b.DataSource,
-        b.InitialCatalog
+        "DB Used at runtime: {Host}/{Database}",
+        b.Host,
+        b.Database
     );
 }
 

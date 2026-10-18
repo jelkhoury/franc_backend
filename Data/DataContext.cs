@@ -307,7 +307,7 @@ namespace FrancProject.Data
                     .HasDatabaseName("IX_GameSessions_UserId");
                 entity.HasIndex(e => e.UserId)
                     .IsUnique()
-                    .HasFilter("[Status] = 'InProgress'")
+                    .HasFilter("\"Status\" = 'InProgress'")
                     .HasDatabaseName("IX_GameSessions_UserId_InProgress_Unique");
             });
 

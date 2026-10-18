@@ -163,7 +163,7 @@ namespace FrancProject.Services
         private async Task ReplaceQuestionsForLevelAsync(long levelId, List<GameQuestion> newQuestions,
             CancellationToken cancellationToken)
         {
-            // No user transactions: compatible with SqlServerRetryingExecutionStrategy. Replace is two-phase SaveChanges.
+            // No user transactions: compatible with Npgsql retry execution strategy. Replace is two-phase SaveChanges.
             var strategy = _context.Database.CreateExecutionStrategy();
             await strategy.ExecuteAsync(async () =>
             {
