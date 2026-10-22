@@ -5,7 +5,7 @@ namespace FrancProject.Dto
     public class MockInterviewEvaluationsDto
     {
         public int MockInterviewId { get; set; }
-        public string MockInterviewTitle { get; set; }
+        public string MockInterviewTitle { get; set; } = null!;
         public bool IsEvaluated { get; set; }
         public int UserId { get; set; }
         public List<MockInterviewAnswerEvaluationDto> Evaluations { get; set; } = new();
@@ -16,8 +16,8 @@ namespace FrancProject.Dto
     {
         public int AnswerId { get; set; }
         public int QuestionId { get; set; }
-        public string QuestionTitle { get; set; }
-        public string VideoUrl { get; set; }
+        public string QuestionTitle { get; set; } = null!;
+        public string VideoUrl { get; set; } = null!;
         public int? EvaluateQuestionId { get; set; }
         public int? EvaluatorId { get; set; }
         public int? Rating { get; set; }

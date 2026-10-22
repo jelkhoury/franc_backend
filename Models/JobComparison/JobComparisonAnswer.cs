@@ -14,7 +14,7 @@ namespace FrancProject.Models
 
         [ForeignKey("JobComparisonId")]
         [JsonIgnore]
-        public JobComparison JobComparison { get; set; }
+        public JobComparison JobComparison { get; set; } = null!;
 
         [Required]
         public int CriterionId { get; set; }

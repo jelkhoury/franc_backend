@@ -18,10 +18,10 @@ namespace FrancProject.Models
 
         [Required]
         public int UserId { get; set; }
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
-        public ICollection<Answer> Answers { get; set; }
+        public ICollection<Answer> Answers { get; set; } = new List<Answer>();
 
-        public ICollection<EvaluationReportSkill> SkillScores { get; set; }
+        public ICollection<EvaluationReportSkill> SkillScores { get; set; } = new List<EvaluationReportSkill>();
     }
 }

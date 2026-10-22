@@ -3,9 +3,9 @@
     public class JobComparisonDto
     {
         public int Id { get; set; }
-        public string JobAName { get; set; }
+        public string JobAName { get; set; } = null!;
         public int UserId { get; set; }
-        public string JobBName { get; set; }
+        public string JobBName { get; set; } = null!;
         public bool IsCompleted { get; set; }
         public DateTime CreatedAt { get; set; }
         public string? ExcelResultUrl { get; set; }

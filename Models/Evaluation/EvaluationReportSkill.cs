@@ -9,15 +9,15 @@ namespace FrancProject.Models
 
         [Required]
         public int EvaluationReportId { get; set; }
-        public EvaluationReport EvaluationReport { get; set; }
+        public EvaluationReport EvaluationReport { get; set; } = null!;
 
         [Required]
         [MaxLength(10)]
-        public string SkillCode { get; set; }
+        public string SkillCode { get; set; } = null!;
 
         [Required]
         [MaxLength(255)]
-        public string SkillName { get; set; }
+        public string SkillName { get; set; } = null!;
 
         [Required]
         [Range(1, 5)]

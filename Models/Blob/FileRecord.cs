@@ -10,12 +10,12 @@ namespace FrancProject.Models
 
         [Required]
         public int UserId { get; set; }
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
         // Resume | CoverLetter | JobAdd
         [Required]
         [MaxLength(50)]
-        public string Title { get; set; }
+        public string Title { get; set; } = null!;
 
         public string? ResumeUrl { get; set; }
         public string? CoverUrl { get; set; }

@@ -11,18 +11,18 @@ namespace FrancProject.Models
 
         [Required]
         [MaxLength(100)]
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
 
-        public string Description { get; set; }
+        public string Description { get; set; } = null!;
 
-        public string UrlImage { get; set; }
+        public string UrlImage { get; set; } = null!;
 
         public int FacultyId { get; set; }
 
         [JsonIgnore]
-        public Faculty Faculty { get; set; }
+        public Faculty Faculty { get; set; } = null!;
 
         [JsonIgnore]
-        public ICollection<Question> Questions { get; set; }
+        public ICollection<Question> Questions { get; set; } = new List<Question>();
     }
 }

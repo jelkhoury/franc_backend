@@ -4,7 +4,7 @@ namespace FrancProject.Dto
 {
     public class CreateQuestionDto
     {
-        public string MajorName { get; set; }
-        public List<IFormFile> QuestionVideos { get; set; }
+        public string MajorName { get; set; } = null!;
+        public List<IFormFile> QuestionVideos { get; set; } = new();
     }
 }
