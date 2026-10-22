@@ -24,10 +24,15 @@ jobs:
           dotnet-version: '8.x'
 
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build FrancProject.sln --configuration Release
 
+      - name: Run tests
+        run: dotnet test FrancProject.sln --configuration Release --no-build --verbosity normal
+
+      # Named explicitly: the solution holds a test project too, and publishing the
+      # solution would drop test assemblies into the deployment artifact.
       - name: dotnet publish
-        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+        run: dotnet publish FrancProject.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4

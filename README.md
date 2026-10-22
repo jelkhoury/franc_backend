@@ -132,6 +132,19 @@ which is faster but only correct once that table has been backfilled.
 Defaults live in `Options/UploadSecurityOptions.cs` and are overridable under an
 `UploadSecurity` configuration section.
 
+## Tests
+
+```bash
+dotnet test
+```
+
+`FrancProject.Tests` (xUnit) covers the two pieces of pure logic that are worth
+pinning down: the access rule in `ClaimsPrincipalExtensions` — who may read whose
+records — and the weighted scoring in `JobComparisonScoreHelper`. No database or
+mocking is involved, so the suite runs in milliseconds.
+
+CI builds the solution, runs the tests, and only then publishes.
+
 ## Deployment
 
 `.github/workflows/deployment_franc-api.yml` builds and publishes to the
