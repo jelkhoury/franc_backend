@@ -402,6 +402,8 @@ FodyWeavers.xsd
 # app settings & secrets
 appsettings.json
 appsettings.*.json
+# ...but the redacted template is the one config file that must be tracked.
+!appsettings.example.json
 
 # build outputs
 **/bin/
