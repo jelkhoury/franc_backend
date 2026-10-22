@@ -6,7 +6,11 @@ namespace FrancProject.Interfaces;
 public interface IUserService
 {
     Task<string> SignUp(UserDto dto);
-    Task<bool> VerifyVerificationCode(string userEmail, string verificationCode);
+    /// <summary>
+    /// Confirms an account with the emailed verification code.
+    /// Returns a freshly issued JWT on success, or <c>null</c> when the code does not match.
+    /// </summary>
+    Task<string?> VerifyVerificationCode(string userEmail, string verificationCode);
     Task<string> SignIn(string email, string password);
     Task SendEmailAsync(int userId);
     Task<string> ForgotPassword(string email);

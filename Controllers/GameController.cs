@@ -1,8 +1,8 @@
 using FrancProject.Dto;
+using FrancProject.Extensions;
 using FrancProject.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace FrancProject.Controllers
 {
@@ -25,34 +25,32 @@ namespace FrancProject.Controllers
             _uploadSecurity = uploadSecurity;
         }
 
-        private int GetUserId() =>
-            int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         [HttpGet("progress")]
         public async Task<IActionResult> GetProgress()
         {
-            var dto = await _gameQuiz.GetProgressAsync(GetUserId());
+            var dto = await _gameQuiz.GetProgressAsync(User.GetUserId());
             return Ok(dto);
         }
 
         [HttpPost("start")]
         public async Task<IActionResult> StartQuiz([FromBody] StartGameSessionRequestDto request)
         {
-            var dto = await _gameQuiz.StartSessionAsync(GetUserId(), request);
+            var dto = await _gameQuiz.StartSessionAsync(User.GetUserId(), request);
             return Ok(dto);
         }
 
         [HttpGet("session/{sessionId:long}")]
         public async Task<IActionResult> GetSessionState(long sessionId)
         {
-            var dto = await _gameQuiz.GetSessionAsync(GetUserId(), sessionId);
+            var dto = await _gameQuiz.GetSessionAsync(User.GetUserId(), sessionId);
             return Ok(dto);
         }
 
         [HttpGet("session/{sessionId:long}/hints")]
         public async Task<IActionResult> GetSessionHints(long sessionId)
         {
-            var dto = await _gameQuiz.GetSessionHintsAsync(GetUserId(), sessionId);
+            var dto = await _gameQuiz.GetSessionHintsAsync(User.GetUserId(), sessionId);
             return Ok(dto);
         }
 
@@ -60,7 +58,7 @@ namespace FrancProject.Controllers
         public async Task<IActionResult> AnswerQuestion(long sessionId, long answerId,
             [FromBody] SubmitGameAnswerRequestDto request)
         {
-            var dto = await _gameQuiz.SubmitAnswerAsync(GetUserId(), sessionId, answerId, request);
+            var dto = await _gameQuiz.SubmitAnswerAsync(User.GetUserId(), sessionId, answerId, request);
             return Ok(dto);
         }
 
@@ -68,19 +66,19 @@ namespace FrancProject.Controllers
         public async Task<IActionResult> UseAbility(long sessionId, long answerId,
             [FromBody] UseGameAbilityRequestDto request)
         {
-            var dto = await _gameQuiz.UseAbilityAsync(GetUserId(), sessionId, answerId, request);
+            var dto = await _gameQuiz.UseAbilityAsync(User.GetUserId(), sessionId, answerId, request);
             return Ok(dto);
         }
 
         [HttpPost("session/{sessionId:long}/finish")]
         public async Task<IActionResult> FinishQuiz(long sessionId)
         {
-            var dto = await _gameQuiz.FinishSessionAsync(GetUserId(), sessionId);
+            var dto = await _gameQuiz.FinishSessionAsync(User.GetUserId(), sessionId);
             return Ok(dto);
         }
 
         [HttpPost("questions/import")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ImportQuestionsFromExcel(
             [FromForm] ImportQuestionsFormDto model,

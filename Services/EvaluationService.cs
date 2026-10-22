@@ -327,6 +327,11 @@ public class EvaluationService : IEvaluationService
         return result;
     }
 
+    public Task<bool> IsMockInterviewOwnedByUserAsync(int mockInterviewId, int userId) =>
+        _context.Answers
+            .AsNoTracking()
+            .AnyAsync(a => a.MockInterviewId == mockInterviewId && a.UserId == userId);
+
     public async Task<MockInterviewEvaluationsDto?> GetEvaluationsByMockInterviewIdAsync(int mockInterviewId)
     {
         var mock = await _context.MockInterviews
