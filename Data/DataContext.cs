@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using FrancProject.Models.ChatContent;
 using FrancProject.Models;
 using FrancProject.Models.Analytics;
 
@@ -9,6 +10,9 @@ namespace FrancProject.Data
         public DataContext(DbContextOptions<DataContext> options) : base(options) { }
 
 
+        public DbSet<ChatEvent> ChatEvents { get; set; }
+        public DbSet<ChatSurvey> ChatSurveys { get; set; }
+        public DbSet<ChatContentIndexJob> ChatContentIndexJobs { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Faculty> Faculties { get; set; }
         public DbSet<Major> Majors { get; set; }
@@ -51,6 +55,35 @@ namespace FrancProject.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<ChatEvent>(e => {
+                e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+                e.Property(x => x.Description).HasMaxLength(20000).IsRequired();
+                e.Property(x => x.TimeZone).HasMaxLength(100).IsRequired();
+                e.Property(x => x.Location).HasMaxLength(500);
+                e.Property(x => x.Url).HasMaxLength(2000);
+                e.Property(x => x.Status).HasMaxLength(20);
+                e.Property(x => x.EmbeddingStatus).HasMaxLength(20);
+                e.Property(x => x.Version).IsConcurrencyToken();
+                e.HasIndex(x => new { x.Status, x.StartsAt });
+            });
+
+            modelBuilder.Entity<ChatSurvey>(e => {
+                e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+                e.Property(x => x.Description).HasMaxLength(20000).IsRequired();
+                e.Property(x => x.TimeZone).HasMaxLength(100).IsRequired();
+                e.Property(x => x.Location).HasMaxLength(500);
+                e.Property(x => x.Url).HasMaxLength(2000);
+                e.Property(x => x.Status).HasMaxLength(20);
+                e.Property(x => x.EmbeddingStatus).HasMaxLength(20);
+                e.Property(x => x.Version).IsConcurrencyToken();
+                e.HasIndex(x => new { x.Status, x.StartsAt });
+            });
+            modelBuilder.Entity<ChatSurvey>().HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatContentIndexJob>().HasIndex(x => new { x.CompletedAt, x.NextAttemptAt });
+            modelBuilder.Entity<ChatContentIndexJob>().Property(x => x.Type).HasMaxLength(20);
+            modelBuilder.Entity<ChatContentIndexJob>().HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<ChatContentIndexJob>().HasOne(x => x.Survey).WithMany().HasForeignKey(x => x.SurveyId).OnDelete(DeleteBehavior.Restrict);
+
 
             // --------------------------
             // USER

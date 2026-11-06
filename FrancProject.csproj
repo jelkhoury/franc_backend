@@ -33,6 +33,9 @@
 
   <ItemGroup>
     <Compile Remove="temp_docx_test\**\*.cs" />
+    <Compile Remove="FrancProject.Tests/**" />
+    <Content Remove="FrancProject.Tests/**" />
+    <None Remove="FrancProject.Tests/**" />
     <None Remove="temp_docx_test\**\*" />
     <Content Remove="temp_docx_test\**\*" />
   </ItemGroup>
