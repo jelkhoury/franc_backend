@@ -69,6 +69,7 @@ the response. Services own transactions and business rules and never touch
 | `/api/jobcomparison` | weighted job scorecards and Excel export |
 | `/api/jobsearch`, `/api/majorskills` | search tools with usage logging |
 | `/api/admin/analytics` | admin dashboard aggregates (Admin role only) |
+| `/api/chat-content` | admin-managed events and surveys, published reads and indexing retries |
 
 ## Authorization model
 
@@ -86,6 +87,12 @@ provides the three helpers every controller uses:
 
 That last helper is what lets the admin dashboard query any user's records while
 keeping ordinary users scoped to their own.
+
+Signup returns no login JWT until email verification. Verification/reset codes have six digits,
+10-minute expiry, five failed guesses and a persisted 60-second resend cooldown. The legacy
+`generate-token-by-email` route is commented out and inactive. See
+[account verification and rollout](docs/account-verification.md) for the required migration and
+[chatbot setup](docs/chatbot-events-and-surveys.md) for event/survey configuration.
 
 ## Error handling
 

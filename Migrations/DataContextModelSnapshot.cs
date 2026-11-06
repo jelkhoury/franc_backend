@@ -1352,6 +1352,23 @@ namespace FrancProject.Migrations
                     b.Property<string>("VerificationCode")
                         .HasColumnType("text");
 
+                    b.Property<int>("VerificationCodeAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("VerificationCodeExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("VerificationCodePurpose")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTimeOffset?>("VerificationCodeSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("VerificationCodeVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")

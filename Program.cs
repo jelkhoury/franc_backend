@@ -80,6 +80,7 @@ builder.Services.AddDbContext<DataContext>(options =>
 // --------------------------------------------------
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IEvaluationService, EvaluationService>();
 builder.Services.AddScoped<MockInterviewReportDocumentService>();
 builder.Services.AddScoped<ISdsService, SdsService>();

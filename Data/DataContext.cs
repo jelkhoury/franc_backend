@@ -91,6 +91,7 @@ namespace FrancProject.Data
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+            modelBuilder.Entity<User>().Property(u => u.VerificationCodeVersion).IsConcurrencyToken();
 
             // --------------------------
             // ANSWERS (User activity → delete with user)

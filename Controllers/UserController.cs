@@ -1,6 +1,7 @@
 using FrancProject.Data;
 using FrancProject.Dto;
 using FrancProject.Extensions;
+using FrancProject.Exceptions;
 using FrancProject.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,8 +38,8 @@ public class UserController : ControllerBase
     [HttpPost("signup")]
     public async Task<IActionResult> SignUp([FromBody] UserDto dto)
     {
-        string token = await _userRepo.SignUp(dto);
-        return Ok(new { message = "Signup successful!", token });
+        await _userRepo.SignUp(dto);
+        return Ok(new { message = "Signup successful! Verify your email to sign in.", requiresVerification = true });
     }
 
     /// <summary>
@@ -50,7 +51,7 @@ public class UserController : ControllerBase
         string? token = await _userRepo.VerifyVerificationCode(email, code);
 
         if (token is null)
-            return BadRequest(new { message = "Invalid verification code." });
+            return BadRequest(new { message = "Invalid, expired, or exhausted verification code. Request a new code." });
 
         return Ok(new { message = "Verification successful!", token });
     }
@@ -58,8 +59,13 @@ public class UserController : ControllerBase
     [HttpPost("sign-in")]
     public async Task<IActionResult> SignIn([FromBody] SignInRequest request)
     {
-        string token = await _userRepo.SignIn(request.Email, request.Password);
-        return Ok(new { message = "Sign-in successful!", token });
+        try {
+            string token = await _userRepo.SignIn(request.Email, request.Password);
+            return Ok(new { message = "Sign-in successful!", token });
+        }
+        catch (AccountNotVerifiedException) {
+            return StatusCode(403, new { message = "Account not verified.", code = "account_not_verified" });
+        }
     }
 
     [HttpPost("forgot-password")]
@@ -72,8 +78,13 @@ public class UserController : ControllerBase
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
     {
-        string result = await _userRepo.ResetPassword(dto.Email, dto.VerificationCode, dto.NewPassword);
-        return Ok(new { message = result });
+        try {
+            string result = await _userRepo.ResetPassword(dto.Email, dto.VerificationCode, dto.NewPassword);
+            return Ok(new { message = result });
+        }
+        catch (InvalidOperationException) {
+            return BadRequest(new { message = "Invalid, expired, or exhausted verification code. Request a new code." });
+        }
     }
 
     /// <summary>
@@ -83,23 +94,31 @@ public class UserController : ControllerBase
     [HttpPost("send-verification-code")]
     public async Task<IActionResult> SendVerificationCode([FromQuery] string email)
     {
-        const string genericResponse = "If that email is registered, a verification code has been sent.";
-
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user == null)
-            return Ok(new { message = genericResponse });
-
-        string code = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
-
-        // Note: IsVerified is intentionally left untouched. Clearing it here would let
-        // anyone lock an existing account out of sign-in just by knowing its email.
-        user.VerificationCode = code;
-        await _context.SaveChangesAsync();
-
-        await _emailService.SendVerificationCodeAsync(email, code);
-
-        return Ok(new { message = genericResponse });
+        return Ok(new { message = await _userRepo.SendVerificationCodeAsync(email) });
     }
+
+    /* Disabled legacy endpoint: retained as requested; it must not be registered.
+       Email alone is not proof of account ownership. Login tokens are issued after
+       password authentication or successful account verification.
+
+    [HttpPost("generate-token-by-email")]
+    public async Task<IActionResult> GenerateTokenByEmail([FromQuery] string email)
+    {
+        var user = await _context.Users
+            .Where(u => u.Email == email)
+            .Select(u => new FrancProject.Models.User
+            {
+                Id = u.Id,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Role = u.Role
+            })
+            .FirstOrDefaultAsync();
+        if (user == null) return BadRequest(new { message = "User not found." });
+        var token = await _userRepo.CreateToken(user);
+        return Ok(new { token });
+    }
+    */
 
     // --------------------------------------------------
     // AUTHENTICATED: SELF-SERVICE

@@ -5,7 +5,8 @@ namespace FrancProject.Interfaces;
 
 public interface IUserService
 {
-    Task<string> SignUp(UserDto dto);
+    Task SignUp(UserDto dto);
+    Task<string> SendVerificationCodeAsync(string email);
     /// <summary>
     /// Confirms an account with the emailed verification code.
     /// Returns a freshly issued JWT on success, or <c>null</c> when the code does not match.
