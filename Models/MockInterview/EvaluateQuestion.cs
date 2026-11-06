@@ -21,10 +21,10 @@ namespace FrancProject.Models
 
         [Required]
         public int AnswerId { get; set; }
-        public Answer Answer { get; set; }
+        public Answer Answer { get; set; } = null!;
 
         [Required]
         public int EvaluatorId { get; set; }
-        public User Evaluator { get; set; }
+        public User Evaluator { get; set; } = null!;
     }
 }

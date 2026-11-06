@@ -13,15 +13,15 @@ namespace FrancProject.Models
 
         [Required]
         [MaxLength(500)]
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
 
         [Required]
         [MaxLength(100)]
-        public string Section { get; set; }
+        public string Section { get; set; } = null!;
 
         [Required]
         [MaxLength(20)]
-        public string Category { get; set; } // "HEAD" or "HEART"
+        public string Category { get; set; } = null!; // "HEAD" or "HEART"
 
         [MaxLength(1000)]
         public string? Description { get; set; }

@@ -12,12 +12,12 @@ namespace FrancProject.Models
 
         public int SectionId { get; set; }
         [JsonIgnore]
-        public SDSSection Section { get; set; }
+        public SDSSection Section { get; set; } = null!;
 
-        public string Text { get; set; }   
+        public string Text { get; set; } = null!;
         public QuestionType Type { get; set; } 
 
-        public ICollection<SDSAnswerOption> AnswerOptions { get; set; }
+        public ICollection<SDSAnswerOption> AnswerOptions { get; set; } = new List<SDSAnswerOption>();
     }
 
     public enum QuestionType

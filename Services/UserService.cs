@@ -86,23 +86,31 @@ public class UserService : IUserService
     // --------------------------
     // VERIFY ACCOUNT
     // --------------------------
-    public async Task<bool> VerifyVerificationCode(string email, string code)
+    public async Task<string?> VerifyVerificationCode(string email, string code)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
         if (user == null)
             throw new KeyNotFoundException("User not found.");
 
-        if (user.VerificationCode != code)
-            return false;
+        // Fixed-time comparison so a caller cannot discover the code byte by byte.
+        if (user.VerificationCode is null || !CodesMatch(user.VerificationCode, code))
+            return null;
 
         user.IsVerified = true;
         user.VerificationCode = null;
 
         await _context.SaveChangesAsync();
 
-        return true;
+        // The account is now proven to belong to the caller, so issuing a token here
+        // removes any need for a separate "give me a token for this email" endpoint.
+        return await CreateToken(user);
     }
+
+    private static bool CodesMatch(string expected, string supplied) =>
+        CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(expected),
+            Encoding.UTF8.GetBytes(supplied));
 
     // --------------------------
     // FORGOT PASSWORD
@@ -129,7 +137,7 @@ public class UserService : IUserService
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
 
-        if (user == null || user.VerificationCode != code)
+        if (user?.VerificationCode is null || !CodesMatch(user.VerificationCode, code))
             throw new InvalidOperationException("Invalid email or verification code.");
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
@@ -201,7 +209,10 @@ public class UserService : IUserService
             new Claim(ClaimTypes.Role, user.Role)
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["AppSettings:Token"]));
+        var signingKey = _config["AppSettings:Token"]
+            ?? throw new InvalidOperationException("AppSettings:Token is not configured.");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(

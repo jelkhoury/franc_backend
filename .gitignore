@@ -399,9 +399,14 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 
+# editor and tooling backups
+*.bak
+
 # app settings & secrets
 appsettings.json
 appsettings.*.json
+# ...but the redacted template is the one config file that must be tracked.
+!appsettings.example.json
 
 # build outputs
 **/bin/

@@ -101,8 +101,8 @@ public class JobComparisonExcelService
 
     public class ExcelExportResultDto
     {
-        public byte[] Bytes { get; set; }
-        public string ExcelUrl { get; set; }
+        public byte[] Bytes { get; set; } = null!;
+        public string ExcelUrl { get; set; } = null!;
     }
 
 }

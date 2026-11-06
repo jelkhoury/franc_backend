@@ -1,8 +1,8 @@
 using FrancProject.Dto;
+using FrancProject.Extensions;
 using FrancProject.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace FrancProject.Controllers
 {
@@ -20,8 +20,6 @@ namespace FrancProject.Controllers
             _searchLogger = searchLogger;
         }
 
-        private int GetUserId() =>
-            int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
         [HttpGet("check")]
         public async Task<IActionResult> Check(string searchKey)
@@ -36,7 +34,7 @@ namespace FrancProject.Controllers
             await _repo.StoreAsync(request);
 
             await _searchLogger.TryLogMajorSkillsSearchAsync(
-                GetUserId(),
+                User.GetUserId(),
                 request.Faculty,
                 request.Major,
                 request.Country);

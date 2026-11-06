@@ -6,8 +6,8 @@ namespace FrancProject.Dto
 
     public class CreateSDSQuestionWithOptionsDto
     {
-        public string SectionName { get; set; }
-        public string Text { get; set; }
+        public string SectionName { get; set; } = null!;
+        public string Text { get; set; } = null!;
         public QuestionType Type { get; set; }
         public List<CreateSDSAnswerOptionDto> AnswerOptions { get; set; } = new();
         

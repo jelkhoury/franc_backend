@@ -1,11 +1,10 @@
 using FrancProject.Data;
 using FrancProject.Dto;
+using FrancProject.Extensions;
 using FrancProject.Interfaces;
-using FrancProject.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using System.Security.Cryptography;
 
 namespace FrancProject.Controllers;
@@ -31,6 +30,10 @@ public class UserController : ControllerBase
         _uploadSecurity = uploadSecurity;
     }
 
+    // --------------------------------------------------
+    // ANONYMOUS: ACCOUNT LIFECYCLE
+    // --------------------------------------------------
+
     [HttpPost("signup")]
     public async Task<IActionResult> SignUp([FromBody] UserDto dto)
     {
@@ -38,15 +41,18 @@ public class UserController : ControllerBase
         return Ok(new { message = "Signup successful!", token });
     }
 
+    /// <summary>
+    /// Confirms an account and returns the JWT for the now-verified user.
+    /// </summary>
     [HttpPost("verify-code")]
     public async Task<IActionResult> VerifyCode([FromQuery] string email, [FromQuery] string code)
     {
-        bool ok = await _userRepo.VerifyVerificationCode(email, code);
+        string? token = await _userRepo.VerifyVerificationCode(email, code);
 
-        if (!ok)
+        if (token is null)
             return BadRequest(new { message = "Invalid verification code." });
 
-        return Ok(new { message = "Verification successful!" });
+        return Ok(new { message = "Verification successful!", token });
     }
 
     [HttpPost("sign-in")]
@@ -70,11 +76,60 @@ public class UserController : ControllerBase
         return Ok(new { message = result });
     }
 
+    /// <summary>
+    /// Issues a fresh verification code. The response is deliberately identical whether or
+    /// not the email exists, so this endpoint cannot be used to enumerate accounts.
+    /// </summary>
+    [HttpPost("send-verification-code")]
+    public async Task<IActionResult> SendVerificationCode([FromQuery] string email)
+    {
+        const string genericResponse = "If that email is registered, a verification code has been sent.";
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        if (user == null)
+            return Ok(new { message = genericResponse });
+
+        string code = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
+
+        // Note: IsVerified is intentionally left untouched. Clearing it here would let
+        // anyone lock an existing account out of sign-in just by knowing its email.
+        user.VerificationCode = code;
+        await _context.SaveChangesAsync();
+
+        await _emailService.SendVerificationCodeAsync(email, code);
+
+        return Ok(new { message = genericResponse });
+    }
+
+    // --------------------------------------------------
+    // AUTHENTICATED: SELF-SERVICE
+    // --------------------------------------------------
+
+    [Authorize]
+    [HttpGet("GetUserInfo")]
+    public async Task<IActionResult> GetMyInfo()
+    {
+        var userInfo = await _userRepo.GetUserInfoAsync(User.GetUserId());
+        return Ok(userInfo);
+    }
+
+    /// <summary>Reports the caller's remaining attempts. Admins may inspect another user via <paramref name="userId"/>.</summary>
+    [Authorize]
+    [HttpGet("CanUserPerformAction")]
+    public async Task<IActionResult> CanUserPerformAction(
+        [FromQuery] UserActionType action,
+        [FromQuery] int? userId = null)
+    {
+        int targetUserId = User.ResolveAccessibleUserId(userId);
+        var canDo = await _userRepo.CanUserPerformActionAsync(targetUserId, action);
+        return Ok(new { userId = targetUserId, canDoMock = canDo });
+    }
+
     [Authorize]
     [HttpPost("send-mock-submission-notification")]
-    public async Task<IActionResult> SendMockInterviewNotification([FromQuery] int userId)
+    public async Task<IActionResult> SendMockInterviewNotification([FromQuery] int? userId = null)
     {
-        await _userRepo.SendEmailAsync(userId);
+        await _userRepo.SendEmailAsync(User.ResolveAccessibleUserId(userId));
         return Ok(new { message = "Notification emails sent to all admins." });
     }
 
@@ -86,24 +141,30 @@ public class UserController : ControllerBase
         if (model.ReportFile == null || model.ReportFile.Length == 0)
             return BadRequest(new { message = "Word report file is required." });
 
+        int targetUserId = User.ResolveAccessibleUserId(model.UserId);
+
         await _uploadSecurity.ValidateAsync(model.ReportFile, FileUploadCategory.WordReport);
 
         using var ms = new MemoryStream();
         await model.ReportFile.CopyToAsync(ms);
 
-        await _userRepo.SendPdfToUserAsync(model.UserId, ms.ToArray(), model.ReportFile.FileName);
+        await _userRepo.SendPdfToUserAsync(targetUserId, ms.ToArray(), model.ReportFile.FileName);
 
         return Ok(new { message = "Mock interview report sent successfully." });
     }
 
-    [Authorize]
+    // --------------------------------------------------
+    // ADMIN: USER MANAGEMENT
+    // --------------------------------------------------
+
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpGet("get-all-users")]
     public async Task<IActionResult> GetAllUsers()
     {
         return Ok(await _userRepo.GetAllUsers());
     }
 
-    [Authorize]
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpPost("add-user")]
     public async Task<IActionResult> AddUser([FromBody] UserCrudDto dto)
     {
@@ -111,7 +172,7 @@ public class UserController : ControllerBase
         return Ok(new { message = "User added successfully.", user = result });
     }
 
-    [Authorize]
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpPut("update-user")]
     public async Task<IActionResult> UpdateUser([FromQuery] int id, [FromBody] UserCrudDto dto)
     {
@@ -122,7 +183,7 @@ public class UserController : ControllerBase
         });
     }
 
-    [Authorize]
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpDelete("delete-user")]
     public async Task<IActionResult> DeleteUser([FromQuery] int id)
     {
@@ -130,64 +191,8 @@ public class UserController : ControllerBase
         return Ok(new { message = "User deleted successfully." });
     }
 
-    [HttpGet("CanUserPerformAction")]
-    public async Task<IActionResult> CanUserPerformAction([FromQuery] int userId, UserActionType action)
-    {
-        var canDo = await _userRepo.CanUserPerformActionAsync(userId, action);
-        return Ok(new { userId, canDoMock = canDo });
-    }
-
-    [HttpPost("send-verification-code")]
-    public async Task<IActionResult> SendVerificationCode([FromQuery] string email)
-    {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-        if (user == null)
-            return BadRequest(new { message = "User not found." });
-
-        string code = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
-
-        user.VerificationCode = code;
-        user.IsVerified = false;
-        await _context.SaveChangesAsync();
-
-        await _emailService.SendVerificationCodeAsync(email, code);
-
-        return Ok(new { message = "Verification code sent successfully." });
-    }
-
-    [HttpPost("generate-token-by-email")]
-    public async Task<IActionResult> GenerateTokenByEmail([FromQuery] string email)
-    {
-        var user = await _context.Users
-            .Where(u => u.Email == email)
-            .Select(u => new User
-            {
-                Id = u.Id,
-                FirstName = u.FirstName,
-                LastName = u.LastName,
-                Role = u.Role
-            })
-            .FirstOrDefaultAsync();
-
-        if (user == null)
-            return BadRequest(new { message = "User not found." });
-
-        var token = await _userRepo.CreateToken(user);
-
-        return Ok(new { token });
-    }
-
-    [Authorize]
-    [HttpGet("GetUserInfo")]
-    public async Task<IActionResult> GetMyInfo()
-    {
-        int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var userInfo = await _userRepo.GetUserInfoAsync(userId);
-        return Ok(userInfo);
-    }
-
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpGet("chats")]
-    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAllChats()
     {
         var result = await _userRepo.GetAllChatsAsync();

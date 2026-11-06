@@ -1,9 +1,9 @@
 using FrancProject.Dto;
+using FrancProject.Extensions;
 using FrancProject.Interfaces;
 using FrancProject.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace FrancProject.Controllers;
 
@@ -23,8 +23,6 @@ public class JobComparisonController : ControllerBase
         _excelService = excelService;
     }
 
-    private int GetUserId() =>
-        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet("criteria")]
     public async Task<IActionResult> GetCriteria()
@@ -45,7 +43,7 @@ public class JobComparisonController : ControllerBase
     }
 
     [HttpPost("criteria/bulk")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     public async Task<IActionResult> BulkCreateCriteria(
         [FromBody] List<CreateJobComparisonCriterionDto> dtos)
     {
@@ -73,7 +71,7 @@ public class JobComparisonController : ControllerBase
     [HttpPost("save")]
     public async Task<IActionResult> SaveJobComparison([FromBody] SaveJobComparisonDto dto)
     {
-        int userId = GetUserId();
+        int userId = User.GetUserId();
         int jobComparisonId = await _jobComparisonRepo.SaveJobComparisonAsync(userId, dto);
 
         return Ok(new
@@ -86,7 +84,7 @@ public class JobComparisonController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetJobComparison([FromRoute] int id)
     {
-        int userId = GetUserId();
+        int userId = User.GetUserId();
 
         var comparison = await _jobComparisonRepo.GetJobComparisonAsync(userId, id);
 
@@ -119,7 +117,7 @@ public class JobComparisonController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllJobComparisons()
     {
-        int userId = GetUserId();
+        int userId = User.GetUserId();
 
         var list = await _jobComparisonRepo.GetAllJobComparisonsAsync(userId);
 
@@ -138,7 +136,7 @@ public class JobComparisonController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteJobComparison([FromRoute] int id)
     {
-        int userId = GetUserId();
+        int userId = User.GetUserId();
 
         bool deleted = await _jobComparisonRepo.DeleteJobComparisonAsync(userId, id);
 
@@ -151,7 +149,7 @@ public class JobComparisonController : ControllerBase
     [HttpGet("check")]
     public async Task<IActionResult> CheckJobComparison()
     {
-        int userId = GetUserId();
+        int userId = User.GetUserId();
 
         var result = await _jobComparisonRepo.GetLatestIncompleteJobComparisonAsync(userId);
 
@@ -164,7 +162,7 @@ public class JobComparisonController : ControllerBase
     [HttpGet("{id}/export-excel")]
     public async Task<IActionResult> ExportExcel(int id)
     {
-        int userId = GetUserId();
+        int userId = User.GetUserId();
 
         var result = await _excelService.GenerateJobComparisonExcelAsync(userId, id);
 
@@ -177,9 +175,10 @@ public class JobComparisonController : ControllerBase
     }
 
     [HttpGet("GetAllJobComparisonsByUserId")]
-    public async Task<IActionResult> GetAllJobComparisonsByUserId(int userId)
+    public async Task<IActionResult> GetAllJobComparisonsByUserId([FromQuery] int? userId = null)
     {
-        var result = await _jobComparisonRepo.GetAllJobComparisonsByUserId(userId);
+        var result = await _jobComparisonRepo.GetAllJobComparisonsByUserId(
+            User.ResolveAccessibleUserId(userId));
 
         if (result == null || !result.Any())
             return NotFound(new { message = "No job comparisons found for this user." });

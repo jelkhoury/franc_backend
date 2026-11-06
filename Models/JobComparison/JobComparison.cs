@@ -12,15 +12,15 @@ namespace FrancProject.Models
         public int UserId { get; set; }
 
         [ForeignKey("UserId")]
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
         [Required]
         [MaxLength(200)]
-        public string JobAName { get; set; }
+        public string JobAName { get; set; } = null!;
 
         [Required]
         [MaxLength(200)]
-        public string JobBName { get; set; }
+        public string JobBName { get; set; } = null!;
 
         [Required]
         public bool IsCompleted { get; set; } = false;

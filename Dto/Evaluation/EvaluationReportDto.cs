@@ -9,7 +9,7 @@ namespace FrancProject.Dto
         public float? OverallRating { get; set; }
         public string? SummaryComment { get; set; }
         public DateTime GeneratedAt { get; set; }
-        public List<AnswerEvaluationDto> Answers { get; set; }
+        public List<AnswerEvaluationDto> Answers { get; set; } = new();
         public List<ReportSkillScoreDto> SkillScores { get; set; } = new();
     }
 
