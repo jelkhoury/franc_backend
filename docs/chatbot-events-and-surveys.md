@@ -12,7 +12,6 @@ The .NET API owns `ChatEvents`, `ChatSurveys`, and durable `ChatContentIndexJobs
 
 Flask environment variables:
 
-- `CHAT_LOG_BACKEND=postgres`: writes chat messages to the same PostgreSQL database instead of the legacy SQL Server logger.
 - `CHAT_CONTENT_ENABLED=true`: enables classification. Leave false during deployment until the migration and both APIs are ready.
 - `CHAT_CONTENT_API_BASE_URL`: reachable .NET base URL; falls back to `JOB_DB_API_BASE_URL`.
 - `CHAT_CONTENT_INDEX_KEY`: must match .NET's `ChatContent__IndexKey`.
