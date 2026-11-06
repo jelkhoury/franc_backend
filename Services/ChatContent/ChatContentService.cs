@@ -19,22 +19,26 @@ public sealed class ChatContentService(DataContext db)
     }
     public sealed record Page(List<ChatContentView> Items, int Total, int PageNumber, int PageSize);
     public Task<Page> List(string type, bool admin, int[]? ids, DateTimeOffset? from, DateTimeOffset? to,
-        int? eventId, string? query, bool includeUnavailable, int page, int pageSize, CancellationToken ct, int[]? eventIds = null) => type == "event"
-        ? ListCore<ChatEvent>(type, admin, ids, from, to, eventId, query, includeUnavailable, page, pageSize, ct, eventIds)
-        : ListCore<ChatSurvey>(type, admin, ids, from, to, eventId, query, includeUnavailable, page, pageSize, ct, eventIds);
+        int? eventId, string? query, bool includeUnavailable, int page, int pageSize, CancellationToken ct,
+        int[]? eventIds = null, string? availability = null) => type == "event"
+        ? ListCore<ChatEvent>(type, admin, ids, from, to, eventId, query, includeUnavailable, page, pageSize, ct, eventIds, availability)
+        : ListCore<ChatSurvey>(type, admin, ids, from, to, eventId, query, includeUnavailable, page, pageSize, ct, eventIds, availability);
 
     private async Task<Page> ListCore<T>(string type, bool admin, int[]? ids, DateTimeOffset? from, DateTimeOffset? to,
-        int? eventId, string? text, bool includeUnavailable, int page, int pageSize, CancellationToken ct, int[]? eventIds) where T : class, IChatContent
+        int? eventId, string? text, bool includeUnavailable, int page, int pageSize, CancellationToken ct,
+        int[]? eventIds, string? availability) where T : class, IChatContent
     {
-        var q = BuildQuery<T>(type, admin, ids, from, to, eventId, text, includeUnavailable, eventIds);
+        var q = BuildQuery<T>(type, admin, ids, from, to, eventId, text, includeUnavailable, eventIds, availability);
         var total = await q.CountAsync(ct);
         var items = await q.OrderBy(x => x.StartsAt).ThenBy(x => x.Id).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
         return new(items.Select(x => View(x, type)).ToList(), total, page, pageSize);
     }
 
     internal IQueryable<T> BuildQuery<T>(string type, bool admin, int[]? ids, DateTimeOffset? from,
-        DateTimeOffset? to, int? eventId, string? text, bool includeUnavailable, int[]? eventIds = null) where T : class, IChatContent
+        DateTimeOffset? to, int? eventId, string? text, bool includeUnavailable, int[]? eventIds = null,
+        string? availability = null) where T : class, IChatContent
     {
+        if (!ChatContentPolicy.IsValidAvailability(type, availability)) throw new ArgumentException("Invalid availability filter.");
         IQueryable<T> q = db.Set<T>().AsNoTracking();
         if (!admin) q = q.Where(x => x.Status == "published");
         if (typeof(T) == typeof(ChatSurvey) && !admin)
@@ -45,7 +49,23 @@ public sealed class ChatContentService(DataContext db)
         if (eventId.HasValue && typeof(T) == typeof(ChatSurvey)) q = q.Where(x => EF.Property<int?>(x, "EventId") == eventId);
         if (eventIds?.Length > 0 && typeof(T) == typeof(ChatSurvey)) q = q.Where(x => eventIds.Contains(EF.Property<int?>(x, "EventId") ?? -1));
         if (!string.IsNullOrWhiteSpace(text)) { var term = text.Trim().ToLower(); q = q.Where(x => x.Name.ToLower().Contains(term) || x.Description.ToLower().Contains(term)); }
-        if (!includeUnavailable) { var now = DateTimeOffset.UtcNow; q = q.Where(x => !x.IsCancelled && (x.EndsAt == null ? (type == "survey" || x.StartsAt >= now) : x.EndsAt > now) && (type == "event" || x.StartsAt == null || x.StartsAt <= now)); }
+        var now = DateTimeOffset.UtcNow;
+        // An explicit filter takes precedence over the legacy includeUnavailable option.
+        if (availability == "available" || (availability == null && !includeUnavailable))
+            q = q.Where(x => !x.IsCancelled && (x.EndsAt == null ? (type == "survey" || x.StartsAt >= now) : x.EndsAt > now) && (type == "event" || x.StartsAt == null || x.StartsAt <= now));
+        else if (availability == "cancelled") q = q.Where(x => x.IsCancelled);
+        else if (availability is not (null or "all")) {
+            q = q.Where(x => !x.IsCancelled);
+            q = availability switch {
+                "scheduled" => q.Where(x => x.StartsAt > now),
+                "ongoing" => q.Where(x => x.StartsAt <= now && x.EndsAt > now),
+                "started" => q.Where(x => x.StartsAt <= now && x.EndsAt == null),
+                "ended" or "closed" => q.Where(x => x.EndsAt <= now),
+                "open" => q.Where(x => (x.StartsAt == null || x.StartsAt <= now) && (x.EndsAt == null || x.EndsAt > now)),
+                "not_open" => q.Where(x => x.StartsAt > now && (x.EndsAt == null || x.EndsAt > now)),
+                _ => q
+            };
+        }
         return q;
     }
 

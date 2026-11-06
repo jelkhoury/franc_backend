@@ -23,6 +23,11 @@ Flask environment variables:
 
 Use HTTPS URLs for cross-service production traffic. Do not expose the indexing key to the frontend. .NET admin mutations require role `Admin`; read endpoints require a valid user JWT and hide drafts/archived records, including surveys whose associated event is unpublished.
 
+Flask knowledge-management endpoints (`/upload_pdf`, `/fetch_and_process`, `/fetch_urls`, `/transcribe`,
+`/sds`, and GET/DELETE `/embeddings`) require a validated JWT with the exact `Admin` role. Missing/invalid
+tokens return 401 and authenticated non-admins return 403. `/ask` continues to accept ordinary user JWTs;
+the internal indexing API uses its separate shared key.
+
 ## Deployment order
 
 1. Back up the database and apply the new EF migration from `franc_backend` (`dotnet ef database update`). This work only generated migration files; it did not change a live database.
@@ -37,6 +42,8 @@ Rollback: set `CHAT_CONTENT_ENABLED=false` to restore the existing general-knowl
 ## Behavior
 
 - Date listings use inclusive `from` and exclusive `to`, show 20 records per page, and report totals.
+- The classifier's `availability_filter` becomes the .NET `availability` query parameter. Use `all` for historical/all-record lists, or an explicit status for closed surveys, cancelled events, and similar requests. SQL applies status filters before counts and pagination. Ordinary upcoming/open lists use `available`; a mixed university/survey list needs no event dates.
+- A selected event candidate scopes survey listings through `eventId`, overriding previous event context. Unknown selected IDs request clarification and never fall back to all surveys.
 - Named content uses pgvector, then .NET revalidates current status and returns current URLs/dates. Ambiguous matches ask the user to choose.
 - Open surveys and scheduled or ongoing events receive action links; closed surveys, events that ended (or started without a known end), and cancelled events remain explainable by name.
 - Publication changes enqueue indexing work atomically with the record save. Stable vector IDs and version guards prevent delayed older jobs from overwriting newer content. Unpublishes retain non-searchable vector tombstones for the same reason.
@@ -48,6 +55,7 @@ Rollback: set `CHAT_CONTENT_ENABLED=false` to restore the existing general-knowl
 ## API contract
 
 - `GET /api/chat-content/{event|survey}`: `ids` (repeatable), `from`, `to`, `eventId`, `query`, `includeUnavailable`, `page`, `pageSize` (max 100), and `admin=true` for role-checked administration. Returns `{items,total,pageNumber,pageSize}`.
+- Optional `availability` overrides `includeUnavailable`: `available`, `all`, or `cancelled` for both types; `scheduled`, `ongoing`, `started`, `ended` for events; `open`, `closed`, `not_open` for surveys. Invalid combinations return 400. Omitting the filter retains previous behavior.
 - `GET /api/chat-content/{type}/{id}`: current published record.
 - `POST /api/chat-content/{type}` and `PUT /api/chat-content/{type}/{id}`: admin input with name, description, dates, timezone, URL, status (`draft|published|archived`), cancellation flag, and optional event ID. Updates require the last returned `version`; stale edits return HTTP 409.
 - `POST /api/chat-content/{type}/{id}/retry-index`: admin retry.
@@ -64,6 +72,8 @@ Event/survey searches and writes use `chat_content_index`, backed by `frank_vect
 General university knowledge keeps using `frank_vectors."document-chats"`.
 The event table uses the same stored embedding dimension and cosine metric as the existing corpus.
 The internal `chat-content` namespace is retained within the dedicated table.
+Admin embedding listing, metadata fetching, and ID/prefix/all deletion use that namespace too, including
+when the legacy index name is supplied. Document knowledge management retains the empty namespace.
 
 For environments that already indexed event content into the university table, run from Frank-LLM:
 
@@ -113,3 +123,6 @@ available action links. No separate survey question is required. Survey associat
 against the selected events and duplicate surveys are removed. The event remains the conversation focus.
 
 Restart both .NET and Flask after this update. No additional database migration is required.
+
+For the production-review fixes, restart .NET before Flask so `availability` is supported before the
+classifier starts sending it. No new secret or environment setting is needed.

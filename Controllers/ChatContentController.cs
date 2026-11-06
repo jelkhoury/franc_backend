@@ -14,11 +14,12 @@ public sealed class ChatContentController(ChatContentService service) : Controll
     public async Task<IActionResult> List(string type, [FromQuery] int[]? ids, [FromQuery] DateTimeOffset? from,
         [FromQuery] DateTimeOffset? to, [FromQuery] int? eventId, [FromQuery] string? query, [FromQuery] int[]? eventIds,
         [FromQuery] bool includeUnavailable = true, [FromQuery] bool admin = false, [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        [FromQuery] int pageSize = 20, CancellationToken ct = default, [FromQuery] string? availability = null)
     {
         if (admin && !User.IsInRole("Admin")) return Forbid();
+        if (!ChatContentPolicy.IsValidAvailability(type, availability)) return BadRequest(new { message = "Invalid availability filter for this content type." });
         if (page is < 1 or > 10000 || query?.Length > 2000 || pageSize is < 1 or > 100 || ids?.Length > 100 || eventIds?.Length > 100 || (from.HasValue && to.HasValue && from >= to)) return BadRequest(new { message = "Invalid range or pagination." });
-        return Ok(await service.List(type, admin, ids, from, to, eventId, query, includeUnavailable, page, pageSize, ct, eventIds));
+        return Ok(await service.List(type, admin, ids, from, to, eventId, query, includeUnavailable, page, pageSize, ct, eventIds, availability));
     }
     [HttpGet("{type:regex(^(event|survey)$)}/{id:int}")]
     public async Task<IActionResult> Get(string type, int id, CancellationToken ct) => await service.Find(type, id, false, ct) is { } row ? Ok(row) : NotFound();

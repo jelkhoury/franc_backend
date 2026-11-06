@@ -37,4 +37,34 @@ public class ChatContentQueryTests
         Assert.Contains("ANY", query);
         Assert.Contains("published", query);
     }
+
+    [Theory]
+    [InlineData("scheduled")]
+    [InlineData("ongoing")]
+    [InlineData("started")]
+    [InlineData("ended")]
+    [InlineData("cancelled")]
+    public void EventAvailabilityFilterTranslatesToPostgres(string availability)
+    {
+        using var db = Context(); var service = new ChatContentService(db);
+        var query = service.BuildQuery<ChatEvent>("event", false, null, null, null, null, null,
+            true, availability: availability).ToQueryString();
+        Assert.Contains("WHERE", query);
+        Assert.Contains("published", query);
+        Assert.Contains("IsCancelled", query);
+    }
+
+    [Theory]
+    [InlineData("open")]
+    [InlineData("closed")]
+    [InlineData("not_open")]
+    public void SurveyAvailabilityFilterTranslatesToPostgres(string availability)
+    {
+        using var db = Context(); var service = new ChatContentService(db);
+        var query = service.BuildQuery<ChatSurvey>("survey", false, null, null, null, null, null,
+            true, availability: availability).ToQueryString();
+        Assert.Contains("WHERE", query);
+        Assert.Contains("EndsAt", query);
+        Assert.Contains("published", query);
+    }
 }

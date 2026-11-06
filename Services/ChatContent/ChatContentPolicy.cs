@@ -3,6 +3,11 @@ namespace FrancProject.Services.ChatContent;
 
 public static class ChatContentPolicy
 {
+    public static bool IsValidAvailability(string type, string? availability) => availability == null
+        || availability is "available" or "all" or "cancelled"
+        || (type == "event" ? availability is "scheduled" or "ongoing" or "started" or "ended"
+            : availability is "open" or "closed" or "not_open");
+
     public static List<string> Validate(string type, ChatContentInput input)
     {
         var errors = new List<string>();
