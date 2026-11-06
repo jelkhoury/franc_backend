@@ -10,7 +10,7 @@ namespace FrancProject.Models
 
         [Required]
         public int UserId { get; set; }
-        public User User { get; set; }
+        public User User { get; set; } = null!;
 
         [MaxLength(10)]
         public string? HollandCode { get; set; }

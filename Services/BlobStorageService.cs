@@ -42,17 +42,19 @@ public class BlobStorageService
 
         // Production (Azure App Settings): BlobContainerName
         // Development (appsettings): AzureBlobStorage:ContainerName
-        _container = env.IsProduction()
+        var container = env.IsProduction()
             ? config["BlobContainerName"]
             : config["AzureBlobStorage:ContainerName"];
 
-        if (string.IsNullOrWhiteSpace(_container))
+        if (string.IsNullOrWhiteSpace(container))
         {
             throw new InvalidOperationException(
                 env.IsProduction()
                     ? "Configuration key 'BlobContainerName' is required in Production."
                     : "Configuration key 'AzureBlobStorage:ContainerName' is required in Development.");
         }
+
+        _container = container;
 
         _context = context;
         _userRepo = userService;
@@ -329,7 +331,13 @@ public class BlobStorageService
                 Title = q.Title,
                 VideoUrl = q.VideoUrl,
                 MajorId = q.MajorId,
-                MajorName = q.MajorId != null ? _context.Majors.First(m => m.Id == q.MajorId).Name : null
+                // MajorId is a non-nullable int, so a "!= null" guard never fires and
+                // First() would throw for a question with no real major. A correlated
+                // subquery returns null instead.
+                MajorName = _context.Majors
+                    .Where(m => m.Id == q.MajorId)
+                    .Select(m => m.Name)
+                    .FirstOrDefault()
             })
             .ToListAsync();
 

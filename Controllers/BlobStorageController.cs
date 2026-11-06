@@ -1,4 +1,5 @@
 ﻿using FrancProject.Dto;
+using FrancProject.Extensions;
 using FrancProject.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,10 +22,13 @@ public class BlobStorageController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadMockInterview([FromForm] MockInterviewUploadDto dto)
     {
+        dto.UserId = User.ResolveAccessibleUserId(dto.UserId);
+
         var result = await _blob.UploadVideosWithUserPrefixAsync(dto);
         return Ok(new { mockInterviewId = result.MockInterviewId, videoUrls = result.VideoUrls });
     }
 
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpGet("get-all-grouped")]
     public async Task<IActionResult> GetAllVideosGrouped()
     {
@@ -32,6 +36,7 @@ public class BlobStorageController : ControllerBase
         return Ok(data);
     }
 
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpPost("create-questions")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateQuestions([FromForm] CreateQuestionDto model)
@@ -40,6 +45,7 @@ public class BlobStorageController : ControllerBase
         return Ok(questions);
     }
 
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpPost("create-question")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateQuestion([FromForm] CreateSingleQuestionDto model)
@@ -55,6 +61,7 @@ public class BlobStorageController : ControllerBase
         return Ok(questions);
     }
 
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpPost("create-major")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateMajor([FromForm] CreateMajorFormDto model)
@@ -77,6 +84,7 @@ public class BlobStorageController : ControllerBase
         return Ok(faculties);
     }
 
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpDelete("delete-question/{id}")]
     public async Task<IActionResult> DeleteQuestion(int id)
     {
@@ -84,6 +92,7 @@ public class BlobStorageController : ControllerBase
         return Ok(new { message = "Question deleted successfully." });
     }
 
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     [HttpPut("edit-question-title/{id}")]
     public async Task<IActionResult> EditQuestionTitle(int id, [FromQuery] string newTitle)
     {
@@ -99,7 +108,7 @@ public class BlobStorageController : ControllerBase
     public async Task<IActionResult> UploadFile([FromForm] UploadFileRequestDto model)
     {
         var record = await _blob.UploadFileAsync(
-            model.UserId,
+            User.ResolveAccessibleUserId(model.UserId),
             model.Title,
             model.ResumeFile,
             model.CoverFile,
@@ -119,7 +128,7 @@ public class BlobStorageController : ControllerBase
     }
 
     [HttpGet("get-admin-files")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = ClaimsPrincipalExtensions.AdminRole)]
     public async Task<IActionResult> GetAdminFiles()
     {
         var files = await _blob.GetAllFilesForAdminAsync();
@@ -127,9 +136,9 @@ public class BlobStorageController : ControllerBase
     }
 
     [HttpGet("GetUserFiles")]
-    public async Task<IActionResult> GetUserFiles(int userId)
+    public async Task<IActionResult> GetUserFiles([FromQuery] int? userId = null)
     {
-        var files = await _blob.GetFilesByUserId(userId);
+        var files = await _blob.GetFilesByUserId(User.ResolveAccessibleUserId(userId));
         return Ok(files);
     }
 }

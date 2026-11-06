@@ -11,7 +11,6 @@ public class EvaluationReportRequest
 public class EvaluateRequest
 {
     public int AnswerId { get; set; }
-    public int EvaluatorId { get; set; }
     public int Rating { get; set; }
     public string? Comment { get; set; }
     public string? Tips { get; set; }
@@ -27,6 +26,5 @@ public class EvaluateAnswerDto
 
 public class EvaluateMultipleRequest
 {
-    public int EvaluatorId { get; set; }
     public List<EvaluateAnswerDto> Evaluations { get; set; } = new();
 }

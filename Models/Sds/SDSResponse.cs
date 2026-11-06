@@ -10,9 +10,9 @@ namespace FrancProject.Models
         public int Id { get; set; }
         public int UserId { get; set; }
         [JsonIgnore]
-        public User User { get; set; }
+        public User User { get; set; } = null!;
         [JsonIgnore]
-        public SDSQuestion Question { get; set; }
+        public SDSQuestion Question { get; set; } = null!;
         public int QuestionId { get; set; }
         public int AttemptNumber { get; set; }
         public string? SelectedValue { get; set; } // store "R", "A", etc. directly
@@ -20,7 +20,7 @@ namespace FrancProject.Models
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
         public int? SDSResultId { get; set; }
         [JsonIgnore]
-        public SDSResult SDSResult { get; set; }
+        public SDSResult SDSResult { get; set; } = null!;
 
     }
 

@@ -12,13 +12,13 @@ namespace FrancProject.Models
 
         [Required]
         [MaxLength(255)]
-        public string Title { get; set; }
+        public string Title { get; set; } = null!;
 
         [Required]
-        public string Duration { get; set; }
+        public string Duration { get; set; } = null!;
 
         [JsonIgnore]
-        public ICollection<Answer> Answers { get; set; }
+        public ICollection<Answer> Answers { get; set; } = new List<Answer>();
 
         public int? NbOfTry { get; set; }
 

@@ -1,6 +1,7 @@
 ﻿using BCrypt.Net;
 using FrancProject.Data;
 using FrancProject.Dto;
+using FrancProject.Exceptions;
 using FrancProject.Interfaces;
 using FrancProject.Models;
 using Microsoft.EntityFrameworkCore;
@@ -21,20 +22,28 @@ public class UserService : IUserService
     private readonly DataContext _context;
     private readonly IConfiguration _config;
     private readonly IEmailService _emailService;
+    private readonly TimeProvider _clock;
+    private const string VerifyEmail = "verify_email";
+    private const string ResetPasswordPurpose = "password_reset";
+    private const int MaxCodeAttempts = 5;
+    private const string VerificationSent = "If that email is registered, a verification code has been sent.";
+    private const string ResetSent = "If that email is registered, a reset code has been sent.";
 
-    public UserService(DataContext context, IConfiguration config, IEmailService emailService)
+    public UserService(DataContext context, IConfiguration config, IEmailService emailService, TimeProvider? clock = null)
     {
         _context = context;
         _config = config;
         _emailService = emailService;
+        _clock = clock ?? TimeProvider.System;
     }
 
     // --------------------------
     // SIGN UP
     // --------------------------
-    public async Task<string> SignUp(UserDto dto)
+    public async Task SignUp(UserDto dto)
     {
-        if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
+        var email = dto.Email;
+        if (await _context.Users.AnyAsync(u => u.Email == email))
             throw new InvalidOperationException("Email is already registered.");
 
         string hashedPassword = BCrypt.Net.BCrypt.HashPassword(dto.PasswordHash);
@@ -43,9 +52,8 @@ public class UserService : IUserService
         {
             FirstName = dto.FirstName,
             LastName = dto.LastName,
-            Email = dto.Email,
+            Email = email,
             PasswordHash = hashedPassword,
-            VerificationCode = GenerateSecureVerificationCode(),
             IsVerified = false,
             Role = "User",
             CanDoMockInterview = true,
@@ -55,13 +63,12 @@ public class UserService : IUserService
             SDSAttempts = 2,
             CreatedAt = DateTime.UtcNow
         };
+        IssueChallenge(user, VerifyEmail);
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
 
-        await _emailService.SendVerificationCodeAsync(user.Email, user.VerificationCode);
-
-        return await CreateToken(user);
+        await _emailService.SendVerificationCodeAsync(user.Email, user.VerificationCode!);
     }
 
     // --------------------------
@@ -69,7 +76,7 @@ public class UserService : IUserService
     // --------------------------
     public async Task<string> SignIn(string email, string password)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        var user = await FindByEmailAsync(email);
 
         if (user == null)
             throw new UnauthorizedAccessException("Invalid credentials.");
@@ -78,7 +85,7 @@ public class UserService : IUserService
             throw new UnauthorizedAccessException("Invalid credentials");
 
         if (!user.IsVerified)
-            throw new UnauthorizedAccessException("Account not verified.");
+            throw new AccountNotVerifiedException();
 
         return await CreateToken(user);
     }
@@ -86,40 +93,38 @@ public class UserService : IUserService
     // --------------------------
     // VERIFY ACCOUNT
     // --------------------------
-    public async Task<bool> VerifyVerificationCode(string email, string code)
+    public async Task<string?> VerifyVerificationCode(string email, string code)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        var user = await FindByEmailAsync(email);
+        if (user == null || user.IsVerified ||
+            !await CompleteChallengeAsync(user, code, VerifyEmail, u => u.IsVerified = true))
+            return null;
 
-        if (user == null)
-            throw new KeyNotFoundException("User not found.");
-
-        if (user.VerificationCode != code)
-            return false;
-
-        user.IsVerified = true;
-        user.VerificationCode = null;
-
-        await _context.SaveChangesAsync();
-
-        return true;
+        // The account is now proven to belong to the caller, so issuing a token here
+        // removes any need for a separate "give me a token for this email" endpoint.
+        return await CreateToken(user);
     }
+
+    public async Task<string> SendVerificationCodeAsync(string email)
+    {
+        var user = await FindByEmailAsync(email);
+        if (user != null && !user.IsVerified) await SendChallengeAsync(user, VerifyEmail);
+        return VerificationSent;
+    }
+
+    private static bool CodesMatch(string expected, string supplied) =>
+        CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(expected),
+            Encoding.UTF8.GetBytes(supplied));
 
     // --------------------------
     // FORGOT PASSWORD
     // --------------------------
     public async Task<string> ForgotPassword(string email)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-
-        if (user == null)
-            throw new InvalidOperationException("No user associated with this email.");
-
-        user.VerificationCode = GenerateSecureVerificationCode();
-        await _context.SaveChangesAsync();
-
-        await _emailService.SendVerificationCodeAsync(user.Email, user.VerificationCode);
-
-        return "A verification code has been sent to your email.";
+        var user = await FindByEmailAsync(email);
+        if (user != null) await SendChallengeAsync(user, ResetPasswordPurpose);
+        return ResetSent;
     }
 
     // --------------------------
@@ -127,15 +132,12 @@ public class UserService : IUserService
     // --------------------------
     public async Task<string> ResetPassword(string email, string code, string newPassword)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-
-        if (user == null || user.VerificationCode != code)
-            throw new InvalidOperationException("Invalid email or verification code.");
-
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
-        user.VerificationCode = null;
-
-        await _context.SaveChangesAsync();
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+            throw new ArgumentException("Password must contain at least six characters.");
+        var user = await FindByEmailAsync(email);
+        if (user == null || !await CompleteChallengeAsync(user, code, ResetPasswordPurpose,
+                u => u.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword)))
+            throw new InvalidOperationException("Invalid, expired, or exhausted verification code. Request a new code.");
 
         return "Password reset successful.";
     }
@@ -184,9 +186,52 @@ public class UserService : IUserService
     // --------------------------
     // HELPER: SECURE CODE
     // --------------------------
-    private string GenerateSecureVerificationCode()
+    private Task<User?> FindByEmailAsync(string email)
     {
-        return RandomNumberGenerator.GetInt32(1000, 9999).ToString();
+        // Match the existing database uniqueness and admin-write rules exactly.
+        return _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+    }
+
+    private void IssueChallenge(User user, string purpose)
+    {
+        string code;
+        do { code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString(); }
+        while (code == user.VerificationCode);
+        user.VerificationCode = code;
+        user.VerificationCodePurpose = purpose;
+        user.VerificationCodeExpiresAt = _clock.GetUtcNow().AddMinutes(10);
+        user.VerificationCodeSentAt = _clock.GetUtcNow();
+        user.VerificationCodeAttempts = 0;
+        user.VerificationCodeVersion++;
+    }
+
+    private async Task SendChallengeAsync(User user, string purpose)
+    {
+        // Persisted per-account cooldown also works across workers and server restarts.
+        if (user.VerificationCodeSentAt > _clock.GetUtcNow().AddSeconds(-60)) return;
+        IssueChallenge(user, purpose);
+        try { await _context.SaveChangesAsync(); }
+        catch (DbUpdateConcurrencyException) { _context.Entry(user).State = EntityState.Detached; return; }
+        await _emailService.SendVerificationCodeAsync(user.Email, user.VerificationCode!);
+    }
+
+    private async Task<bool> CompleteChallengeAsync(User user, string code, string purpose, Action<User> onSuccess)
+    {
+        if (user.VerificationCode == null || user.VerificationCodePurpose != purpose
+            || user.VerificationCodeExpiresAt == null || user.VerificationCodeExpiresAt <= _clock.GetUtcNow()
+            || user.VerificationCodeAttempts >= MaxCodeAttempts) return false;
+        var matches = CodesMatch(user.VerificationCode, code);
+        user.VerificationCodeVersion++;
+        if (matches) onSuccess(user);
+        else user.VerificationCodeAttempts++;
+        if (matches || user.VerificationCodeAttempts >= MaxCodeAttempts) {
+            user.VerificationCode = null;
+            user.VerificationCodePurpose = null;
+            user.VerificationCodeExpiresAt = null;
+        }
+        try { await _context.SaveChangesAsync(); }
+        catch (DbUpdateConcurrencyException) { _context.Entry(user).State = EntityState.Detached; return false; }
+        return matches;
     }
 
     // --------------------------
@@ -194,6 +239,7 @@ public class UserService : IUserService
     // --------------------------
     public async Task<string> CreateToken(User user)
     {
+        if (!user.IsVerified) throw new UnauthorizedAccessException("Account not verified.");
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -201,7 +247,10 @@ public class UserService : IUserService
             new Claim(ClaimTypes.Role, user.Role)
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["AppSettings:Token"]));
+        var signingKey = _config["AppSettings:Token"]
+            ?? throw new InvalidOperationException("AppSettings:Token is not configured.");
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(

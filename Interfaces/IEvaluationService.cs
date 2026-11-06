@@ -14,4 +14,10 @@ public interface IEvaluationService
     Task IncreaseMockAttemptsAsync(int userId);
     Task<List<EvaluationReportDto>> GetReportsByUserIdAsync(int userId);
     Task<MockInterviewEvaluationsDto?> GetEvaluationsByMockInterviewIdAsync(int mockInterviewId);
+
+    /// <summary>
+    /// True when <paramref name="userId"/> sat the given mock interview. Used by the
+    /// controller to keep one candidate from reading another candidate's evaluations.
+    /// </summary>
+    Task<bool> IsMockInterviewOwnedByUserAsync(int mockInterviewId, int userId);
 }

@@ -20,7 +20,7 @@ public class EmailService : IEmailService
         var message = CreateMessage(
             toEmail,
             "Verification Code",
-            $"Your verification code is: <b>{code}</b>");
+            $"Your verification code is: <b>{code}</b>. It expires in 10 minutes.");
 
         return SendAsync(message, cancellationToken);
     }

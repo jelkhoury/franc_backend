@@ -10,13 +10,13 @@ namespace FrancProject.Models
 
         [Required]
         [MaxLength(255)]
-        public string Title { get; set; }
+        public string Title { get; set; } = null!;
 
         [Required]
-        public string VideoUrl { get; set; }
+        public string VideoUrl { get; set; } = null!;
 
         [JsonIgnore]
         public int MajorId { get; set; }
-        public Major Major { get; set; }
+        public Major Major { get; set; } = null!;
     }
 }

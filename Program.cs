@@ -1,4 +1,5 @@
 using FrancProject.Data;
+using FrancProject.Services.ChatContent;
 using FrancProject.Extensions;
 using FrancProject.Helpers;
 using FrancProject.Interfaces;
@@ -79,6 +80,7 @@ builder.Services.AddDbContext<DataContext>(options =>
 // --------------------------------------------------
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IEvaluationService, EvaluationService>();
 builder.Services.AddScoped<MockInterviewReportDocumentService>();
 builder.Services.AddScoped<ISdsService, SdsService>();
@@ -94,6 +96,9 @@ builder.Services.Configure<AnalyticsOptions>(builder.Configuration.GetSection(An
 builder.Services.AddScoped<IActivityEventWriter, ActivityEventWriter>();
 builder.Services.AddScoped<IJobMatchingSearchLogger, JobMatchingSearchLogger>();
 builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ChatContentService>();
+builder.Services.AddHttpClient("ChatContentIndexer", client => client.Timeout = TimeSpan.FromSeconds(90));
+builder.Services.AddHostedService<ChatContentIndexWorker>();
 
 builder.Services.AddControllers();
 

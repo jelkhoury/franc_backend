@@ -3,7 +3,7 @@
     public class AdminFileDto
     {
         public int Id { get; set; }
-        public string Title { get; set; }
+        public string Title { get; set; } = null!;
 
         public string? ResumeUrl { get; set; }
         public string? CoverUrl { get; set; }
@@ -11,6 +11,6 @@
 
         public string? AiEvaluation { get; set; }
 
-        public string UserEmail { get; set; }
+        public string UserEmail { get; set; } = null!;
     }
 }

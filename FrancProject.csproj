@@ -18,7 +18,11 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-	  <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <!-- Npgsql 8.0.11 is the newest 8.0.x and pulls EF Core Relational 8.0.11, which
+         conflicts with the 8.0.22 EF Core pinned above. Pin the transitive package so
+         referencing projects resolve one version instead of unifying at build time. -->
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.22" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.22">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -33,6 +37,9 @@
 
   <ItemGroup>
     <Compile Remove="temp_docx_test\**\*.cs" />
+    <Compile Remove="FrancProject.Tests/**" />
+    <Content Remove="FrancProject.Tests/**" />
+    <None Remove="FrancProject.Tests/**" />
     <None Remove="temp_docx_test\**\*" />
     <Content Remove="temp_docx_test\**\*" />
   </ItemGroup>

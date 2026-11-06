@@ -5,8 +5,8 @@ namespace FrancProject.Dto
     public class UploadFileRequestDto
     {
         public int UserId { get; set; }
-        public string Title { get; set; }
-        public string FolderName { get; set; }
+        public string Title { get; set; } = null!;
+        public string FolderName { get; set; } = null!;
 
         public IFormFile? ResumeFile { get; set; }
         public IFormFile? CoverFile { get; set; }
